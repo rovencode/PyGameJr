@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "ball.py",
+            "name": "arcade",
             "type": "python",
             "request": "launch",
-            "program": "examples/ball.py",
+            "program": "examples/arcade/shooting.py",
             "console": "integratedTerminal",
             "justMyCode": true
         },
