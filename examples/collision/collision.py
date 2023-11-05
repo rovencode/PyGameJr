@@ -25,6 +25,5 @@ def triangle_keyboard(triangle, keys):
 
 game.handle(triangle.on_keypress, triangle_keyboard)
 
-while game.is_running():
-
-    game.update()
+game.keep_running()
+]

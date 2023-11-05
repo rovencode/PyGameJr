@@ -71,6 +71,10 @@ def get_bounding_rect(polygon_points:List[Tuple[int, int]])->pygame.Rect:
 
     return bounding_rect
 
+def keep_running():
+    while running:
+        update()
+
 class Actor:
     def __init__(self, type:ActorType, draw_kwargs:Dict[str, Any]):
         self.type = type
