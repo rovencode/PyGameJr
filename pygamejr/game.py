@@ -10,14 +10,28 @@ screen:Optional[pygame.Surface] = None
 actors = []
 width, height = 320, 240 #1280, 720 #640, 480 #320, 240
 color = "purple"
+background_image:Optional[pygame.Surface] = None
 fps = 60
 down_keys = set()
 down_mousbuttons = set()
+images = {}
+
+def get_image(image_path:Optional[str], cache=True):
+    if image_path is None:
+        return None
+    if image_path not in images:
+        image = pygame.image.load(utils.full_path_abs(image_path))
+        if cache:
+            images[image_path] = image
+        return image
 
 class Actor:
-    def __init__(self, image_path:str, x:int, y:int):
-        self.image = pygame.image.load(utils.full_path_abs(image_path))
-        self.rect = self.image.get_rect()
+    def __init__(self, image_path:Optional[str], x:int, y:int):
+        self.show_image(image_path)
+        self.rect:Optional[pygame.Rect] = self.image.get_rect() if self.image else None
+
+    def show_image(self, image_path:Optional[str], cache=True):
+        self.image = get_image(image_path, cache)
 
     def on_keypress(self, keys:Set[str]):
         pass
@@ -68,8 +82,12 @@ def create_sprite(image_path:str, x:int, y:int) -> Actor:
     actors.append(actor)
     return actor
 
-def start(screen_color="purple", screen_width=width, screen_height=height, screen_fps=fps):
-    global running, dt, screen, width, height, color, fps
+def start(title:str, screen_width=width, screen_height=height,
+          screen_color:Optional[str]="purple",
+          image_path:Optional[str]=None,
+          screen_fps=fps):
+
+    global running, dt, screen, width, height, color, fps, background_image
 
     width, height = screen_width, screen_height
     color = screen_color
@@ -78,7 +96,12 @@ def start(screen_color="purple", screen_width=width, screen_height=height, scree
     # pygame setup
     pygame.init()
     screen = pygame.display.set_mode((width, height))
-    screen.fill(color)
+
+    if color:
+        screen.fill(color)
+    if image_path:
+        background_image = get_image(image_path)
+
     running = True
 
 def on_frame():
@@ -131,7 +154,11 @@ def update():
 
     assert screen is not None, "screen is None"
 
-    screen.fill(color)
+    if color:
+        screen.fill(color)
+    if background_image:
+        screen.blit(background_image, (0, 0))
+
     for actor in actors:
         screen.blit(actor.image, actor.rect)
 
