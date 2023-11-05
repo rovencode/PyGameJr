@@ -5,10 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "arcade",
+            "name": "ball_keyboard",
             "type": "python",
             "request": "launch",
             "program": "examples/ball_keyboard/ball_keyboard.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "ball_bouncing",
+            "type": "python",
+            "request": "launch",
+            "program": "examples/ball_bouncing/ball_bouncing.py",
             "console": "integratedTerminal",
             "justMyCode": true
         },

@@ -1,4 +1,5 @@
-from typing import List, Tuple, Optional, Set
+from typing import List, Tuple, Optional, Set, Dict, Any
+from enum import Enum
 
 import pygame
 
@@ -10,7 +11,7 @@ screen:Optional[pygame.Surface] = None
 actors = []
 width, height = 320, 240 #1280, 720 #640, 480 #320, 240
 color = "purple"
-background_image:Optional[pygame.Surface] = None
+screen_image:Optional[pygame.Surface] = None
 fps = 60
 down_keys = set()
 down_mousbuttons = set()
@@ -23,15 +24,36 @@ def get_image(image_path:Optional[str], cache=True):
         image = pygame.image.load(utils.full_path_abs(image_path))
         if cache:
             images[image_path] = image
-        return image
+    else:
+        image = images[image_path]
+    return image
+
+class ActorType(Enum):
+    image = 'image'
+    rect = 'rect'
+    elipse = 'elipse'
+    poligon = 'poligon'
+    line = 'line'
 
 class Actor:
-    def __init__(self, image_path:Optional[str], x:int, y:int):
-        self.show_image(image_path)
-        self.rect:Optional[pygame.Rect] = self.image.get_rect() if self.image else None
+    def __init__(self, type:ActorType, draw_kwargs:Dict[str, Any], x:int, y:int):
+        self.type = type
+        self.draw_kwargs = draw_kwargs
+        self.x = x
+        self.y = y
 
-    def show_image(self, image_path:Optional[str], cache=True):
-        self.image = get_image(image_path, cache)
+
+    def move(self, dx:int, dy:int)->Tuple[int, int]:
+        self.x += dx
+        self.y += dy
+        return self.x, self.y
+
+    def rect(self)->pygame.Rect:
+        if self.type == ActorType.image:
+            image = get_image(self.draw_kwargs['image_path'])
+            if image:
+                return image.get_rect().move(self.x, self.y)
+        return pygame.Rect(self.x, self.y, 0, 0)
 
     def on_keypress(self, keys:Set[str]):
         pass
@@ -78,16 +100,18 @@ def handle(event_method, handler):
 
 
 def create_sprite(image_path:str, x:int, y:int) -> Actor:
-    actor = Actor(image_path, x, y)
+    actor = Actor(type=ActorType.image,
+                  draw_kwargs={'image_path': image_path} ,
+                  x=x, y=y)
     actors.append(actor)
     return actor
 
-def start(title:str, screen_width=width, screen_height=height,
+def start(title:Optional[str]=None, screen_width=width, screen_height=height,
           screen_color:Optional[str]="purple",
-          image_path:Optional[str]=None,
+          screen_image_path:Optional[str]=None,
           screen_fps=fps):
 
-    global running, dt, screen, width, height, color, fps, background_image
+    global running, dt, screen, width, height, color, fps, screen_image
 
     width, height = screen_width, screen_height
     color = screen_color
@@ -97,10 +121,13 @@ def start(title:str, screen_width=width, screen_height=height,
     pygame.init()
     screen = pygame.display.set_mode((width, height))
 
+    if title:
+        pygame.display.set_caption(title)
+
     if color:
         screen.fill(color)
-    if image_path:
-        background_image = get_image(image_path)
+    if screen_image_path:
+        screen_image = get_image(screen_image_path)
 
     running = True
 
@@ -156,11 +183,14 @@ def update():
 
     if color:
         screen.fill(color)
-    if background_image:
-        screen.blit(background_image, (0, 0))
+    if screen_image:
+        screen.blit(screen_image, (0, 0))
 
     for actor in actors:
-        screen.blit(actor.image, actor.rect)
+        if actor.type == ActorType.image:
+            image = get_image(actor.draw_kwargs['image_path'])
+            if image:
+                screen.blit(image, (actor.x, actor.y))
 
     # flip() the display to put your work on screen
     pygame.display.flip()
