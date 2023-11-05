@@ -29,6 +29,14 @@
             "justMyCode": true
         },
         {
+            "name": "collision",
+            "type": "python",
+            "request": "launch",
+            "program": "examples/collision/collision.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",

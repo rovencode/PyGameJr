@@ -76,6 +76,12 @@ class Actor:
         self.type = type
         self.draw_kwargs = draw_kwargs
 
+    def set_color(self, color:str):
+        self.draw_kwargs['color'] = color
+
+    def set_border(self, border:int):
+        self.draw_kwargs['width'] = border
+
     def move(self, dx:int, dy:int)->Tuple[int, int]:
         if self.type == ActorType.image:
             self.draw_kwargs['x'] += dx
@@ -159,10 +165,10 @@ class Actor:
     def on_mousebutton(self, pos:Tuple[int, int]):
         pass
 
-    def on_mousedown(self, pos:Tuple[int, int]):
+    def on_mousedown(self, pos:Tuple[int, int], button:int, touch:Optional[int]):
         pass
 
-    def on_mouseup(self, pos:Tuple[int, int]):
+    def on_mouseup(self, pos:Tuple[int, int], button:int, touch:Optional[int]):
         pass
 
     def on_mousemove(self, pos:Tuple[int, int]):
