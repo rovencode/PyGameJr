@@ -12,6 +12,7 @@ width, height = 320, 240 #1280, 720 #640, 480 #320, 240
 color = "purple"
 fps = 60
 down_keys = set()
+down_mousbuttons = set()
 
 class Actor:
     def __init__(self, image_path:str, x:int, y:int):
@@ -25,6 +26,9 @@ class Actor:
         pass
 
     def on_keyup(self, key:str):
+        pass
+
+    def on_mousebutton(self, pos:Tuple[int, int]):
         pass
 
     def on_mousedown(self, pos:Tuple[int, int]):
@@ -77,8 +81,10 @@ def start(screen_color="purple", screen_width=width, screen_height=height, scree
     screen.fill(color)
     running = True
 
+def on_frame():
+    pass
 
-def rest():
+def update():
     global running
 
     if not running:
@@ -100,11 +106,13 @@ def rest():
             for actor in actors:
                 actor.on_keyup(key_name)
         if event.type == pygame.MOUSEBUTTONDOWN:
+            down_mousbuttons.add(event.button)
             for actor in actors:
-                actor.on_mousedown(event.pos)
+                actor.on_mousedown(event.pos, event.button, event.touch)
         if event.type == pygame.MOUSEBUTTONUP:
+            down_mousbuttons.remove(event.button)
             for actor in actors:
-                actor.on_mouseup(event.pos)
+                actor.on_mouseup(event.pos, event.button, event.touch)
         if event.type == pygame.MOUSEMOTION:
             for actor in actors:
                 actor.on_mousemove(event.pos)
@@ -114,7 +122,12 @@ def rest():
     if down_keys:
         for actor in actors:
             actor.on_keypress(down_keys)
+    if down_mousbuttons:
+        for actor in actors:
+            actor.on_mousebutton(down_mousbuttons)
 
+    # call on_frame() to update your game state
+    on_frame()
 
     assert screen is not None, "screen is None"
 

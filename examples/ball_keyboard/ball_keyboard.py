@@ -17,4 +17,4 @@ def ball_keyboard(ball, keys):
 game.handle(ball.on_keypress, ball_keyboard)
 
 while True:
-    game.rest()
+    game.update()

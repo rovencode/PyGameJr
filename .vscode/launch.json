@@ -8,7 +8,7 @@
             "name": "arcade",
             "type": "python",
             "request": "launch",
-            "program": "examples/arcade/shooting.py",
+            "program": "examples/ball_keyboard/ball_keyboard.py",
             "console": "integratedTerminal",
             "justMyCode": true
         },

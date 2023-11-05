@@ -13,4 +13,4 @@ while True:
     if ball.rect.top < 0 or ball.rect.bottom > game.height:
         y_speed = -y_speed
 
-    game.rest()
+    game.update()
