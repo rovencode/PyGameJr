@@ -14,7 +14,7 @@ def ball_keyboard(ball, keys):
     elif "down" in keys:
         ball.rect = ball.rect.move(0, 2)
 
-ball.attach_on_keyboard(ball_keyboard)
+game.handle(ball.on_keypress, ball_keyboard)
 
 while True:
     game.rest()

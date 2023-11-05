@@ -18,48 +18,45 @@ class Actor:
         self.image = pygame.image.load(utils.full_path_abs(image_path))
         self.rect = self.image.get_rect()
 
-    def on_keyboard(self, keys:Set[str]):
+    def on_keypress(self, keys:Set[str]):
         pass
-
-    def attach_on_keyboard(self, callback):
-        self.on_keyboard = callback.__get__(self)
 
     def on_keydown(self, key:str):
         pass
 
-    def attach_on_keydown(self, callback):
-        self.on_keydown = callback.__get__(self)
-
     def on_keyup(self, key:str):
         pass
-
-    def attach_on_keyup(self, callback):
-        self.on_keyup = callback.__get__(self)
 
     def on_mousedown(self, pos:Tuple[int, int]):
         pass
 
-    def attach_on_mousedown(self, callback):
-        self.on_mousedown = callback.__get__(self)
-
     def on_mouseup(self, pos:Tuple[int, int]):
         pass
-
-    def attach_on_mouseup(self, callback):
-        self.on_mouseup = callback.__get__(self)
 
     def on_mousemove(self, pos:Tuple[int, int]):
         pass
 
-    def attach_on_mousemove(self, callback):
-        self.on_mousemove = callback.__get__(self)
-
     def on_mousewheel(self, pos:Tuple[int, int], y:int):
         pass
 
-    def attach_on_mousewheel(self, callback):
-        self.on_mousewheel = callback.__get__(self)
+def handle(event_method, handler):
+    """
+    Assign a handler to a given event method.
 
+    :param event_method: The bound method of the event to handle (e.g., obj.on_keydown).
+    :param handler: The handler function to replace the original method.
+    """
+    if not callable(event_method):
+        raise ValueError("The first argument must be a callable method.")
+
+    # Retrieve the self instance from the method
+    self = event_method.__self__
+
+    # Get the name of the method
+    method_name = event_method.__name__
+
+    # Set the handler to replace the original event method, making sure it's bound
+    setattr(self, method_name, handler.__get__(self, type(self)))
 
 
 def create_sprite(image_path:str, x:int, y:int) -> Actor:
@@ -116,7 +113,7 @@ def rest():
                 actor.on_mousewheel(event.pos, event.y)
     if down_keys:
         for actor in actors:
-            actor.on_keyboard(down_keys)
+            actor.on_keypress(down_keys)
 
 
     assert screen is not None, "screen is None"
