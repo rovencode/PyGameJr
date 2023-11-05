@@ -21,6 +21,14 @@
             "justMyCode": true
         },
         {
+            "name": "shapes",
+            "type": "python",
+            "request": "launch",
+            "program": "examples/shapes/shapes.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",

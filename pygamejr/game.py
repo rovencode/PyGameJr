@@ -1,4 +1,5 @@
-from typing import List, Tuple, Optional, Set, Dict, Any
+import math
+from typing import List, Tuple, Optional, Set, Dict, Any, Union
 from enum import Enum
 
 import pygame
@@ -31,9 +32,28 @@ def get_image(image_path:Optional[str], cache=True):
 class ActorType(Enum):
     image = 'image'
     rect = 'rect'
-    elipse = 'elipse'
-    poligon = 'poligon'
+    ellipse = 'ellipse'
+    polygon = 'polygon'
     line = 'line'
+
+def polygon_points(sides:int, left:int, top:int, polygon_width:int, polygon_height:int):
+    # The distance from the center to a corner (radius)
+    radius_x = polygon_width / 2
+    radius_y = polygon_height / 2
+
+    # Calculate the center of the polygon
+    center_x = left + radius_x
+    center_y = top + radius_y
+
+    # Calculate the points of the polygon
+    polygon_points = []
+    for i in range(sides):
+        angle = math.radians(360 / sides * i - 90)  # Subtract 90 degrees to start from the top
+        x = center_x + radius_x * math.cos(angle)
+        y = center_y + radius_y * math.sin(angle)
+        polygon_points.append((x, y))
+
+    return polygon_points
 
 def get_bounding_rect(polygon_points:List[Tuple[int, int]])->pygame.Rect:
     # Unzip the polygon points into two separate lists of x coordinates and y coordinates
@@ -64,10 +84,10 @@ class Actor:
         elif self.type == ActorType.rect:
             self.draw_kwargs['rect'].move_ip(dx, dy)
             return self.draw_kwargs['rect'].x, self.draw_kwargs['rect'].y
-        elif self.type == ActorType.elipse:
+        elif self.type == ActorType.ellipse:
             self.draw_kwargs['rect'].move_ip(dx, dy)
             return self.draw_kwargs['rect'].x, self.draw_kwargs['rect'].y
-        elif self.type == ActorType.poligon:
+        elif self.type == ActorType.polygon:
             self.draw_kwargs['points'] = [(x + dx, y + dy) for x, y in self.draw_kwargs['points']]
             # return min x, min y
             return get_bounding_rect(self.draw_kwargs['points']).topleft
@@ -80,6 +100,12 @@ class Actor:
         else:
             raise ValueError("Invalid ActorType: %s" % self.type)
 
+    def touches(self, other:Union['Actor', List['Actor']])->bool:
+        if isinstance(other, list):
+            return self.rect().collidelist([o.rect() for o in other]) != -1
+        else:
+            return self.rect().colliderect(other.rect())
+
     def rect(self)->pygame.Rect:
         if self.type == ActorType.image:
             image = get_image(self.draw_kwargs['image_path'])
@@ -87,9 +113,9 @@ class Actor:
                 return image.get_rect().move(self.draw_kwargs['x'], self.draw_kwargs['y'])
         elif self.type == ActorType.rect:
             return pygame.Rect(self.draw_kwargs['rect'])
-        elif self.type == ActorType.elipse:
+        elif self.type == ActorType.ellipse:
             return pygame.Rect(self.draw_kwargs['rect'])
-        elif self.type == ActorType.poligon:
+        elif self.type == ActorType.polygon:
             return get_bounding_rect(self.draw_kwargs['points'])
         elif self.type == ActorType.line:
             return pygame.Rect(self.draw_kwargs['start_pos'],
@@ -105,11 +131,11 @@ class Actor:
             pygame.draw.rect(screen, self.draw_kwargs['color'],
                              self.draw_kwargs['rect'],
                              width=self.draw_kwargs.get('width', 0))
-        elif self.type == ActorType.elipse:
+        elif self.type == ActorType.ellipse:
             pygame.draw.ellipse(screen, self.draw_kwargs['color'],
                                 self.draw_kwargs['rect'],
                                 width=self.draw_kwargs.get('width', 0))
-        elif self.type == ActorType.poligon:
+        elif self.type == ActorType.polygon:
             pygame.draw.polygon(screen, self.draw_kwargs['color'],
                                 self.draw_kwargs['points'],
                                 width=self.draw_kwargs.get('width', 0))
@@ -171,13 +197,45 @@ def create_sprite(image_path:str, x:int, y:int) -> Actor:
     actors.append(actor)
     return actor
 
-def create_rect(width:int, height:int, x:int, y:int, color:str="red", border=0) -> Actor:
+def create_rect(width:int=20, height:int=20, x:int=0, y:int=0, color:str="red", border=0) -> Actor:
     actor = Actor(type=ActorType.rect,
                   draw_kwargs={'rect': pygame.Rect(x, y, width, height),
-                               'color': color, 'width': border} ,
-                  x=x, y=y)
+                               'color': color, 'width': border})
     actors.append(actor)
     return actor
+
+def create_ellipse(width:int=20, height:int=20, x:int=0, y:int=0, color:str="yellow", border=0) -> Actor:
+    actor = Actor(type=ActorType.ellipse,
+                  draw_kwargs={'rect': pygame.Rect(x, y, width, height),
+                               'color': color, 'width': border})
+    actors.append(actor)
+    return actor
+
+def create_polygon(sides:int, width:int=20, height:int=20, x:int=0, y:int=0,
+                   color:str="green", border=0) -> Actor:
+    actor = Actor(type=ActorType.polygon,
+                  draw_kwargs={'points': polygon_points(sides, x, y, width, height),
+                               'color': color, 'width': border})
+    actors.append(actor)
+    return actor
+
+def create_line(start_x:int, start_y:int, end_x:int, end_y:int, color:str="red", border=0) -> Actor:
+    actor = Actor(type=ActorType.line,
+                  draw_kwargs={'start_pos': (start_x, start_y),
+                               'end_pos': (end_x, end_y),
+                               'color': color, 'width': border})
+    actors.append(actor)
+    return actor
+
+def create_polygon_any(points:List[Tuple[int, int]], color:str="green", border=0) -> Actor:
+    actor = Actor(type=ActorType.polygon,
+                  draw_kwargs={'points': points,
+                               'color': color, 'width': border})
+    actors.append(actor)
+    return actor
+
+def is_running()->bool:
+    return running
 
 def start(title:Optional[str]=None, screen_width=width, screen_height=height,
           screen_color:Optional[str]="purple",
