@@ -35,25 +35,91 @@ class ActorType(Enum):
     poligon = 'poligon'
     line = 'line'
 
+def get_bounding_rect(polygon_points:List[Tuple[int, int]])->pygame.Rect:
+    # Unzip the polygon points into two separate lists of x coordinates and y coordinates
+    x_coordinates, y_coordinates = zip(*polygon_points)
+
+    # Use min and max to find the bounding coordinates
+    top_left_x = min(x_coordinates)
+    top_left_y = min(y_coordinates)
+    bottom_right_x = max(x_coordinates)
+    bottom_right_y = max(y_coordinates)
+
+    # Create a pygame.Rect representing the bounding rectangle
+    # The width and height are calculated by subtracting the top left from the bottom right coordinates
+    bounding_rect = pygame.Rect(top_left_x, top_left_y, bottom_right_x - top_left_x, bottom_right_y - top_left_y)
+
+    return bounding_rect
+
 class Actor:
-    def __init__(self, type:ActorType, draw_kwargs:Dict[str, Any], x:int, y:int):
+    def __init__(self, type:ActorType, draw_kwargs:Dict[str, Any]):
         self.type = type
         self.draw_kwargs = draw_kwargs
-        self.x = x
-        self.y = y
-
 
     def move(self, dx:int, dy:int)->Tuple[int, int]:
-        self.x += dx
-        self.y += dy
-        return self.x, self.y
+        if self.type == ActorType.image:
+            self.draw_kwargs['x'] += dx
+            self.draw_kwargs['y'] += dy
+            return self.draw_kwargs['x'], self.draw_kwargs['y']
+        elif self.type == ActorType.rect:
+            self.draw_kwargs['rect'].move_ip(dx, dy)
+            return self.draw_kwargs['rect'].x, self.draw_kwargs['rect'].y
+        elif self.type == ActorType.elipse:
+            self.draw_kwargs['rect'].move_ip(dx, dy)
+            return self.draw_kwargs['rect'].x, self.draw_kwargs['rect'].y
+        elif self.type == ActorType.poligon:
+            self.draw_kwargs['points'] = [(x + dx, y + dy) for x, y in self.draw_kwargs['points']]
+            # return min x, min y
+            return get_bounding_rect(self.draw_kwargs['points']).topleft
+        elif self.type == ActorType.line:
+            self.draw_kwargs['start_pos'] = (self.draw_kwargs['start_pos'][0] + dx,
+                                             self.draw_kwargs['start_pos'][1] + dy)
+            self.draw_kwargs['end_pos'] = (self.draw_kwargs['end_pos'][0] + dx,
+                                           self.draw_kwargs['end_pos'][1] + dy)
+            return self.draw_kwargs['start_pos']
+        else:
+            raise ValueError("Invalid ActorType: %s" % self.type)
 
     def rect(self)->pygame.Rect:
         if self.type == ActorType.image:
             image = get_image(self.draw_kwargs['image_path'])
             if image:
-                return image.get_rect().move(self.x, self.y)
-        return pygame.Rect(self.x, self.y, 0, 0)
+                return image.get_rect().move(self.draw_kwargs['x'], self.draw_kwargs['y'])
+        elif self.type == ActorType.rect:
+            return pygame.Rect(self.draw_kwargs['rect'])
+        elif self.type == ActorType.elipse:
+            return pygame.Rect(self.draw_kwargs['rect'])
+        elif self.type == ActorType.poligon:
+            return get_bounding_rect(self.draw_kwargs['points'])
+        elif self.type == ActorType.line:
+            return pygame.Rect(self.draw_kwargs['start_pos'],
+                               self.draw_kwargs['end_pos'])
+        return pygame.Rect(0, 0, 0, 0)
+
+    def draw(self, screen:pygame.Surface):
+        if self.type == ActorType.image:
+            image = get_image(self.draw_kwargs['image_path'])
+            if image:
+                screen.blit(image, (self.draw_kwargs['x'], self.draw_kwargs['y']))
+        elif self.type == ActorType.rect:
+            pygame.draw.rect(screen, self.draw_kwargs['color'],
+                             self.draw_kwargs['rect'],
+                             width=self.draw_kwargs.get('width', 0))
+        elif self.type == ActorType.elipse:
+            pygame.draw.ellipse(screen, self.draw_kwargs['color'],
+                                self.draw_kwargs['rect'],
+                                width=self.draw_kwargs.get('width', 0))
+        elif self.type == ActorType.poligon:
+            pygame.draw.polygon(screen, self.draw_kwargs['color'],
+                                self.draw_kwargs['points'],
+                                width=self.draw_kwargs.get('width', 0))
+        elif self.type == ActorType.line:
+            pygame.draw.line(screen, self.draw_kwargs['color'],
+                             self.draw_kwargs['start_pos'],
+                             self.draw_kwargs['end_pos'],
+                             width=self.draw_kwargs.get('width', 0))
+        else:
+            raise ValueError("Invalid ActorType: %s" % self.type)
 
     def on_keypress(self, keys:Set[str]):
         pass
@@ -101,7 +167,14 @@ def handle(event_method, handler):
 
 def create_sprite(image_path:str, x:int, y:int) -> Actor:
     actor = Actor(type=ActorType.image,
-                  draw_kwargs={'image_path': image_path} ,
+                  draw_kwargs={'image_path': image_path, 'x': x, 'y': y})
+    actors.append(actor)
+    return actor
+
+def create_rect(width:int, height:int, x:int, y:int, color:str="red", border=0) -> Actor:
+    actor = Actor(type=ActorType.rect,
+                  draw_kwargs={'rect': pygame.Rect(x, y, width, height),
+                               'color': color, 'width': border} ,
                   x=x, y=y)
     actors.append(actor)
     return actor
@@ -187,10 +260,7 @@ def update():
         screen.blit(screen_image, (0, 0))
 
     for actor in actors:
-        if actor.type == ActorType.image:
-            image = get_image(actor.draw_kwargs['image_path'])
-            if image:
-                screen.blit(image, (actor.x, actor.y))
+        actor.draw(screen)
 
     # flip() the display to put your work on screen
     pygame.display.flip()
