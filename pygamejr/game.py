@@ -79,6 +79,76 @@ class Actor:
     def __init__(self, type:ActorType, draw_kwargs:Dict[str, Any]):
         self.type = type
         self.draw_kwargs = draw_kwargs
+        self.surface, self.x, self.y = self.create_surface()
+
+    def create_surface(self)->Tuple[pygame.Surface, int, int]:
+        if self.type == ActorType.image:
+            image = get_image(self.draw_kwargs['image_path'])
+            surface = image if image else pygame.Surface((0, 0))
+            x, y = self.draw_kwargs['x'], self.draw_kwargs['y']
+
+        elif self.type == ActorType.rect:
+            rect:pygame.Rect = self.draw_kwargs['rect'].copy()
+            rect.topleft = (0, 0)
+
+            surface = pygame.Surface((self.draw_kwargs['rect'].width, self.draw_kwargs['rect'].height))
+            pygame.draw.rect(surface, self.draw_kwargs['color'],
+                             rect,
+                             width=self.draw_kwargs.get('width', 0))
+            x, y = self.draw_kwargs['rect'].x, self.draw_kwargs['rect'].y
+
+        elif self.type == ActorType.ellipse:
+            rect:pygame.Rect = self.draw_kwargs['rect'].copy()
+            rect.topleft = (0, 0)
+
+            surface = pygame.Surface((self.draw_kwargs['rect'].width, self.draw_kwargs['rect'].height), pygame.SRCALPHA)
+            surface.fill((0, 0, 0, 0)) # transparent color
+            pygame.draw.ellipse(surface, self.draw_kwargs['color'],
+                                rect,
+                                width=self.draw_kwargs.get('width', 0))
+            x, y = self.draw_kwargs['rect'].x, self.draw_kwargs['rect'].y
+
+        elif self.type == ActorType.polygon:
+            bounding_rect = get_bounding_rect(self.draw_kwargs['points'])
+
+            # Find the minimum x (left) and y (top) values
+            min_x = min(point[0] for point in self.draw_kwargs['points'])
+            min_y = min(point[1] for point in self.draw_kwargs['points'])
+
+            # Create a new polygon where each point is adjusted by the min_x and min_y
+            relative_points = [(x - min_x, y - min_y) for x, y in self.draw_kwargs['points']]
+
+            surface = pygame.Surface(bounding_rect.size, pygame.SRCALPHA)
+            surface.fill((0, 0, 0, 0)) # transparent color
+            pygame.draw.polygon(surface, self.draw_kwargs['color'],
+                                relative_points,
+                                width=self.draw_kwargs.get('width', 0))
+
+            x, y = bounding_rect.x, bounding_rect.y
+
+        elif self.type == ActorType.line:
+            points = [self.draw_kwargs['start_pos'], self.draw_kwargs['end_pos']]
+            bounding_rect = get_bounding_rect(points)
+
+            # Find the minimum x (left) and y (top) values
+            min_x = min(point[0] for point in points)
+            min_y = min(point[1] for point in points)
+
+            # Create a new polygon where each point is adjusted by the min_x and min_y
+            relative_points = [(x - min_x, y - min_y) for x, y in points]
+
+            surface = pygame.Surface(bounding_rect.size, pygame.SRCALPHA)
+            surface.fill((0, 0, 0, 0)) # transparent color
+            pygame.draw.line(surface, self.draw_kwargs['color'],
+                             relative_points[0],
+                             relative_points[1],
+                             width=self.draw_kwargs.get('width', 0))
+
+            x, y = bounding_rect.x, bounding_rect.y
+        else:
+            raise ValueError("Invalid ActorType: %s" % self.type)
+
+        return surface, x, y
 
     def set_color(self, color:str):
         self.draw_kwargs['color'] = color
