@@ -1,255 +1,43 @@
 import math
+from dataclasses import dataclass
 from typing import List, Tuple, Optional, Set, Dict, Any, Union
 from enum import Enum
 
 import pygame
 
 from pygamejr import utils
+from pygamejr import common
+from pygamejr.actor import Actor, ActorType
 
-running = False
-clock = pygame.time.Clock()
-screen:Optional[pygame.Surface] = None
-actors = []
-width, height = 320, 240 #1280, 720 #640, 480 #320, 240
-color = "purple"
-screen_image:Optional[pygame.Surface] = None
-fps = 60
-down_keys = set()
-down_mousbuttons = set()
-images = {}
+_running = False # is game currently running?
 
-def get_image(image_path:Optional[str], cache=True):
-    if image_path is None:
-        return None
-    if image_path not in images:
-        image = pygame.image.load(utils.full_path_abs(image_path))
-        if cache:
-            images[image_path] = image
-    else:
-        image = images[image_path]
-    return image
+clock = pygame.time.Clock() # game clock
+screen:Optional[pygame.Surface] = None # game screen
 
-class ActorType(Enum):
-    image = 'image'
-    rect = 'rect'
-    ellipse = 'ellipse'
-    polygon = 'polygon'
-    line = 'line'
+_actors = [] # list of actors
+down_keys = set()   # keys currently down
+down_mousbuttons = set()  # mouse buttons currently down
 
-def polygon_points(sides:int, left:int, top:int, polygon_width:int, polygon_height:int):
-    # The distance from the center to a corner (radius)
-    radius_x = polygon_width / 2
-    radius_y = polygon_height / 2
+@dataclass
+class ScreenProps:
+    width:int=1280
+    height:int=720
+    color:pygame.ColorValue="purple"
+    fps:int=60
+    image_path:Optional[str]=None
+    image:Optional[pygame.Surface]=None # image to display on screen
+    title:str="PyGameJr Rocks"
+_screen_props = ScreenProps()
 
-    # Calculate the center of the polygon
-    center_x = left + radius_x
-    center_y = top + radius_y
-
-    # Calculate the points of the polygon
-    polygon_points = []
-    for i in range(sides):
-        angle = math.radians(360 / sides * i - 90)  # Subtract 90 degrees to start from the top
-        x = center_x + radius_x * math.cos(angle)
-        y = center_y + radius_y * math.sin(angle)
-        polygon_points.append((x, y))
-
-    return polygon_points
-
-def get_bounding_rect(polygon_points:List[Tuple[int, int]])->pygame.Rect:
-    # Unzip the polygon points into two separate lists of x coordinates and y coordinates
-    x_coordinates, y_coordinates = zip(*polygon_points)
-
-    # Use min and max to find the bounding coordinates
-    top_left_x = min(x_coordinates)
-    top_left_y = min(y_coordinates)
-    bottom_right_x = max(x_coordinates)
-    bottom_right_y = max(y_coordinates)
-
-    # Create a pygame.Rect representing the bounding rectangle
-    # The width and height are calculated by subtracting the top left from the bottom right coordinates
-    bounding_rect = pygame.Rect(top_left_x, top_left_y, bottom_right_x - top_left_x, bottom_right_y - top_left_y)
-
-    return bounding_rect
+def is_running()->bool:
+    return _running
 
 def keep_running():
-    while running:
+    """
+    default game loop
+    """
+    while _running:
         update()
-
-class Actor:
-    def __init__(self, type:ActorType, draw_kwargs:Dict[str, Any]):
-        self.type = type
-        self.draw_kwargs = draw_kwargs
-        self.surface, self.x, self.y = self.create_surface()
-
-    def create_surface(self)->Tuple[pygame.Surface, int, int]:
-        if self.type == ActorType.image:
-            image = get_image(self.draw_kwargs['image_path'])
-            surface = image if image else pygame.Surface((0, 0))
-            x, y = self.draw_kwargs['x'], self.draw_kwargs['y']
-
-        elif self.type == ActorType.rect:
-            rect:pygame.Rect = self.draw_kwargs['rect'].copy()
-            rect.topleft = (0, 0)
-
-            surface = pygame.Surface((self.draw_kwargs['rect'].width, self.draw_kwargs['rect'].height))
-            pygame.draw.rect(surface, self.draw_kwargs['color'],
-                             rect,
-                             width=self.draw_kwargs.get('width', 0))
-            x, y = self.draw_kwargs['rect'].x, self.draw_kwargs['rect'].y
-
-        elif self.type == ActorType.ellipse:
-            rect:pygame.Rect = self.draw_kwargs['rect'].copy()
-            rect.topleft = (0, 0)
-
-            surface = pygame.Surface((self.draw_kwargs['rect'].width, self.draw_kwargs['rect'].height), pygame.SRCALPHA)
-            surface.fill((0, 0, 0, 0)) # transparent color
-            pygame.draw.ellipse(surface, self.draw_kwargs['color'],
-                                rect,
-                                width=self.draw_kwargs.get('width', 0))
-            x, y = self.draw_kwargs['rect'].x, self.draw_kwargs['rect'].y
-
-        elif self.type == ActorType.polygon:
-            bounding_rect = get_bounding_rect(self.draw_kwargs['points'])
-
-            # Find the minimum x (left) and y (top) values
-            min_x = min(point[0] for point in self.draw_kwargs['points'])
-            min_y = min(point[1] for point in self.draw_kwargs['points'])
-
-            # Create a new polygon where each point is adjusted by the min_x and min_y
-            relative_points = [(x - min_x, y - min_y) for x, y in self.draw_kwargs['points']]
-
-            surface = pygame.Surface(bounding_rect.size, pygame.SRCALPHA)
-            surface.fill((0, 0, 0, 0)) # transparent color
-            pygame.draw.polygon(surface, self.draw_kwargs['color'],
-                                relative_points,
-                                width=self.draw_kwargs.get('width', 0))
-
-            x, y = bounding_rect.x, bounding_rect.y
-
-        elif self.type == ActorType.line:
-            points = [self.draw_kwargs['start_pos'], self.draw_kwargs['end_pos']]
-            bounding_rect = get_bounding_rect(points)
-
-            # Find the minimum x (left) and y (top) values
-            min_x = min(point[0] for point in points)
-            min_y = min(point[1] for point in points)
-
-            # Create a new polygon where each point is adjusted by the min_x and min_y
-            relative_points = [(x - min_x, y - min_y) for x, y in points]
-
-            surface = pygame.Surface(bounding_rect.size, pygame.SRCALPHA)
-            surface.fill((0, 0, 0, 0)) # transparent color
-            pygame.draw.line(surface, self.draw_kwargs['color'],
-                             relative_points[0],
-                             relative_points[1],
-                             width=self.draw_kwargs.get('width', 0))
-
-            x, y = bounding_rect.x, bounding_rect.y
-        else:
-            raise ValueError("Invalid ActorType: %s" % self.type)
-
-        return surface, x, y
-
-    def set_color(self, color:str):
-        self.draw_kwargs['color'] = color
-
-    def set_border(self, border:int):
-        self.draw_kwargs['width'] = border
-
-    def move(self, dx:int, dy:int)->Tuple[int, int]:
-        if self.type == ActorType.image:
-            self.draw_kwargs['x'] += dx
-            self.draw_kwargs['y'] += dy
-            return self.draw_kwargs['x'], self.draw_kwargs['y']
-        elif self.type == ActorType.rect:
-            self.draw_kwargs['rect'].move_ip(dx, dy)
-            return self.draw_kwargs['rect'].x, self.draw_kwargs['rect'].y
-        elif self.type == ActorType.ellipse:
-            self.draw_kwargs['rect'].move_ip(dx, dy)
-            return self.draw_kwargs['rect'].x, self.draw_kwargs['rect'].y
-        elif self.type == ActorType.polygon:
-            self.draw_kwargs['points'] = [(x + dx, y + dy) for x, y in self.draw_kwargs['points']]
-            # return min x, min y
-            return get_bounding_rect(self.draw_kwargs['points']).topleft
-        elif self.type == ActorType.line:
-            self.draw_kwargs['start_pos'] = (self.draw_kwargs['start_pos'][0] + dx,
-                                             self.draw_kwargs['start_pos'][1] + dy)
-            self.draw_kwargs['end_pos'] = (self.draw_kwargs['end_pos'][0] + dx,
-                                           self.draw_kwargs['end_pos'][1] + dy)
-            return self.draw_kwargs['start_pos']
-        else:
-            raise ValueError("Invalid ActorType: %s" % self.type)
-
-    def touches(self, other:Union['Actor', List['Actor']])->bool:
-        if isinstance(other, list):
-            return self.rect().collidelist([o.rect() for o in other]) != -1
-        else:
-            return self.rect().colliderect(other.rect())
-
-    def rect(self)->pygame.Rect:
-        if self.type == ActorType.image:
-            image = get_image(self.draw_kwargs['image_path'])
-            if image:
-                return image.get_rect().move(self.draw_kwargs['x'], self.draw_kwargs['y'])
-        elif self.type == ActorType.rect:
-            return pygame.Rect(self.draw_kwargs['rect'])
-        elif self.type == ActorType.ellipse:
-            return pygame.Rect(self.draw_kwargs['rect'])
-        elif self.type == ActorType.polygon:
-            return get_bounding_rect(self.draw_kwargs['points'])
-        elif self.type == ActorType.line:
-            return pygame.Rect(self.draw_kwargs['start_pos'],
-                               self.draw_kwargs['end_pos'])
-        return pygame.Rect(0, 0, 0, 0)
-
-    def draw(self, screen:pygame.Surface):
-        if self.type == ActorType.image:
-            image = get_image(self.draw_kwargs['image_path'])
-            if image:
-                screen.blit(image, (self.draw_kwargs['x'], self.draw_kwargs['y']))
-        elif self.type == ActorType.rect:
-            pygame.draw.rect(screen, self.draw_kwargs['color'],
-                             self.draw_kwargs['rect'],
-                             width=self.draw_kwargs.get('width', 0))
-        elif self.type == ActorType.ellipse:
-            pygame.draw.ellipse(screen, self.draw_kwargs['color'],
-                                self.draw_kwargs['rect'],
-                                width=self.draw_kwargs.get('width', 0))
-        elif self.type == ActorType.polygon:
-            pygame.draw.polygon(screen, self.draw_kwargs['color'],
-                                self.draw_kwargs['points'],
-                                width=self.draw_kwargs.get('width', 0))
-        elif self.type == ActorType.line:
-            pygame.draw.line(screen, self.draw_kwargs['color'],
-                             self.draw_kwargs['start_pos'],
-                             self.draw_kwargs['end_pos'],
-                             width=self.draw_kwargs.get('width', 0))
-        else:
-            raise ValueError("Invalid ActorType: %s" % self.type)
-
-    def on_keypress(self, keys:Set[str]):
-        pass
-
-    def on_keydown(self, key:str):
-        pass
-
-    def on_keyup(self, key:str):
-        pass
-
-    def on_mousebutton(self, pos:Tuple[int, int]):
-        pass
-
-    def on_mousedown(self, pos:Tuple[int, int], button:int, touch:Optional[int]):
-        pass
-
-    def on_mouseup(self, pos:Tuple[int, int], button:int, touch:Optional[int]):
-        pass
-
-    def on_mousemove(self, pos:Tuple[int, int]):
-        pass
-
-    def on_mousewheel(self, pos:Tuple[int, int], y:int):
-        pass
 
 def handle(event_method, handler):
     """
@@ -274,29 +62,29 @@ def handle(event_method, handler):
 def create_sprite(image_path:str, x:int, y:int) -> Actor:
     actor = Actor(type=ActorType.image,
                   draw_kwargs={'image_path': image_path, 'x': x, 'y': y})
-    actors.append(actor)
+    _actors.append(actor)
     return actor
 
 def create_rect(width:int=20, height:int=20, x:int=0, y:int=0, color:str="red", border=0) -> Actor:
     actor = Actor(type=ActorType.rect,
                   draw_kwargs={'rect': pygame.Rect(x, y, width, height),
                                'color': color, 'width': border})
-    actors.append(actor)
+    _actors.append(actor)
     return actor
 
 def create_ellipse(width:int=20, height:int=20, x:int=0, y:int=0, color:str="yellow", border=0) -> Actor:
     actor = Actor(type=ActorType.ellipse,
                   draw_kwargs={'rect': pygame.Rect(x, y, width, height),
                                'color': color, 'width': border})
-    actors.append(actor)
+    _actors.append(actor)
     return actor
 
 def create_polygon(sides:int, width:int=20, height:int=20, x:int=0, y:int=0,
                    color:str="green", border=0) -> Actor:
     actor = Actor(type=ActorType.polygon,
-                  draw_kwargs={'points': polygon_points(sides, x, y, width, height),
+                  draw_kwargs={'points': common.polygon_points(sides, x, y, width, height),
                                'color': color, 'width': border})
-    actors.append(actor)
+    _actors.append(actor)
     return actor
 
 def create_line(start_x:int, start_y:int, end_x:int, end_y:int, color:str="red", border=0) -> Actor:
@@ -304,51 +92,65 @@ def create_line(start_x:int, start_y:int, end_x:int, end_y:int, color:str="red",
                   draw_kwargs={'start_pos': (start_x, start_y),
                                'end_pos': (end_x, end_y),
                                'color': color, 'width': border})
-    actors.append(actor)
+    _actors.append(actor)
     return actor
 
 def create_polygon_any(points:List[Tuple[int, int]], color:str="green", border=0) -> Actor:
     actor = Actor(type=ActorType.polygon,
                   draw_kwargs={'points': points,
                                'color': color, 'width': border})
-    actors.append(actor)
+    _actors.append(actor)
     return actor
 
-def is_running()->bool:
-    return running
+def start(screen_title:str=_screen_props.title,
+          screen_width=_screen_props.width,
+          screen_height=_screen_props.height,
+          screen_color:Optional[str]=_screen_props.color,
+          screen_image_path:Optional[str]=_screen_props.image_path,
+          screen_fps=_screen_props.fps):
 
-def start(title:Optional[str]=None, screen_width=width, screen_height=height,
-          screen_color:Optional[str]="purple",
-          screen_image_path:Optional[str]=None,
-          screen_fps=fps):
-
-    global running, dt, screen, width, height, color, fps, screen_image
-
-    width, height = screen_width, screen_height
-    color = screen_color
-    fps = screen_fps
+    global  _running
 
     # pygame setup
     pygame.init()
+
+    set_screen_size(screen_width, screen_height)
+    set_screen_color(screen_color)
+    set_screen_image(screen_image_path)
+    set_screen_fps(screen_fps)
+    set_screen_title(screen_title)
+
+    _running = True
+
+def set_screen_size(width:int, height:int):
+    global screen
     screen = pygame.display.set_mode((width, height))
-
-    if title:
-        pygame.display.set_caption(title)
-
-    if color:
-        screen.fill(color)
-    if screen_image_path:
-        screen_image = get_image(screen_image_path)
-
-    running = True
+    _screen_props.width = width
+    _screen_props.height = height
+def set_screen_color(color:pygame.ColorValue):
+    global screen
+    screen.fill(color)
+    _screen_props.color = color
+def set_screen_image(image_path:Optional[str]):
+    global screen_image
+    if image_path is not None:
+        _screen_props.image = common.get_image(image_path)
+    else:
+        _screen_props.image = None
+    _screen_props.image_path = image_path
+def set_screen_fps(fps:int):
+    _screen_props.fps = fps
+def set_screen_title(title:str):
+    pygame.display.set_caption(title)
+    _screen_props.title = title
 
 def on_frame():
     pass
 
 def update():
-    global running
+    global _running
 
-    if not running:
+    if not _running:
         return
 
     # poll for events
@@ -359,32 +161,32 @@ def update():
         if event.type == pygame.KEYDOWN:
             key_name = pygame.key.name(event.key)
             down_keys.add(key_name)
-            for actor in actors:
+            for actor in _actors:
                 actor.on_keydown(key_name)
         if event.type == pygame.KEYUP:
             key_name = pygame.key.name(event.key)
             down_keys.remove(key_name)
-            for actor in actors:
+            for actor in _actors:
                 actor.on_keyup(key_name)
         if event.type == pygame.MOUSEBUTTONDOWN:
             down_mousbuttons.add(event.button)
-            for actor in actors:
+            for actor in _actors:
                 actor.on_mousedown(event.pos, event.button, event.touch)
         if event.type == pygame.MOUSEBUTTONUP:
             down_mousbuttons.remove(event.button)
-            for actor in actors:
+            for actor in _actors:
                 actor.on_mouseup(event.pos, event.button, event.touch)
         if event.type == pygame.MOUSEMOTION:
-            for actor in actors:
+            for actor in _actors:
                 actor.on_mousemove(event.pos)
         if event.type == pygame.MOUSEWHEEL:
-            for actor in actors:
+            for actor in _actors:
                 actor.on_mousewheel(event.pos, event.y)
     if down_keys:
-        for actor in actors:
+        for actor in _actors:
             actor.on_keypress(down_keys)
     if down_mousbuttons:
-        for actor in actors:
+        for actor in _actors:
             actor.on_mousebutton(down_mousbuttons)
 
     # call on_frame() to update your game state
@@ -397,23 +199,23 @@ def update():
     if screen_image:
         screen.blit(screen_image, (0, 0))
 
-    for actor in actors:
+    for actor in _actors:
         actor.draw(screen)
 
     # flip() the display to put your work on screen
     pygame.display.flip()
 
     # This will pause the game loop until 1/60 seconds have passed
-    # since the last tick. This limits the loop to running at 60 FPS.
+    # since the last tick. This limits the loop to _running at 60 FPS.
     clock.tick(fps)
 
 
 def end():
-    global running
+    global _running
 
-    if running:
+    if _running:
         pygame.quit()
         pygame.display.quit()
         pygame.mixer.quit()
-        running = False
+        _running = False
         exit(0)
