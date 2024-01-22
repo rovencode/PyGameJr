@@ -1,4 +1,5 @@
 from enum import Enum
+import math
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 import os
 from collections.abc import Sequence
@@ -42,11 +43,33 @@ class Actor(pygame.sprite.Sprite):
 
         super().__init__()
 
-        self.costumes:Dict[str, pygame.Surface] = {}
-        self.image = pygame.Surface((0, 0))
-        self.rect:pygame.Rect = self.image.get_rect(topleft=(x, y))
         self.mask:Optional[pygame.mask.Mask] = None
         self.enable_transparency = enable_transparency
+        self.rect:pygame.Rect = pygame.Rect(x, y, 0, 0)
+        self.costumes:Dict[str, pygame.Surface] = {
+            "_hidden_": pygame.Surface((0, 0))
+        }
+        self.last_shown_costume = self.current_costume = "_hidden_"
+        self.angle = 0.0
+        self.hide()
+
+    def hide(self):
+        if self.current_costume != "_hidden_":
+            self.last_shown_costume = self.current_costume
+        self.set_costume("_hidden_")
+
+    def is_hidden(self)->bool:
+        return self.current_costume == "_hidden_"
+
+    def show(self):
+        self.set_costume(self.last_shown_costume)
+
+    def glide_to(self, xy:Tuple[float,float], speed:float=1)->None:
+        target_vector = pygame.math.Vector2(xy) - pygame.math.Vector2(self.rect.center)
+        if target_vector.length() > 0:
+            target_vector = target_vector.normalize() * speed
+            new_pos = pygame.math.Vector2(self.rect.center) + target_vector
+            self.rect.center = new_pos.x, new_pos.y
 
     def add_costume_image(self, name:str,
                           image_path_or_surface:Union[str, pygame.Surface],
@@ -89,6 +112,22 @@ class Actor(pygame.sprite.Sprite):
 
         return self.add_costume_image(name, surface)
 
+    def write(self, text:str, font_name:Optional[str]=None, font_size:int=20,
+              color:PyGameColor="black", x:int=0, y:int=0,
+              background_color:Optional[PyGameColor]=None,
+              )->None:
+
+        if text:
+            font = pygame.font.Font(font_name, font_size)
+            surface = font.render(text, True, color, background_color)
+
+            self.image.blit(surface, (x, y))
+        else:
+            self.set_costume(self.last_shown_costume)
+
+    def save_current_costume(self, name:str)->None:
+        self.costumes[name] = self.image
+
     def add_costume_polygon_any(self, name:str,
                         points:List[Tuple[int, int]],
                         color:PyGameColor="green", border=0) -> pygame.Surface:
@@ -123,6 +162,9 @@ class Actor(pygame.sprite.Sprite):
         else:
             if self.enable_transparency and self.has_transparency():
                 self.mask = pygame.mask.from_surface(self.image)
+        self.current_costume = name
+        if self.angle != 0.0:
+            self.turn(self.angle)
 
     def remove_costume(self, name:str):
         del self.costumes[name]
@@ -146,6 +188,25 @@ class Actor(pygame.sprite.Sprite):
             # No transparency
             return False
 
+    def turn(self, angle:float)->None:
+        """ Rotate a sprite and keep its center. """
+        # Rotate the image
+        original_image = self.costumes[self.current_costume]
+        self.image = pygame.transform.rotate(original_image, angle)
+        # Get the new rect
+        self.rect = self.image.get_rect(center=self.rect.center)
+        self.angle = angle
+
+    def angle_to(self, xy:Tuple[float,float])->float:
+        # Calculate angle to target
+        x_diff = xy[0] - self.rect.centerx
+        y_diff = xy[1] - self.rect.centery
+        angle = math.degrees(math.atan2(-y_diff, x_diff))
+        return angle
+
+    def turn_to(self, xy:Tuple[float,float], speed=0.5)->None:
+        angle = self.angle_to(xy)*speed
+        self.turn(angle)
 
     def touches(self, other:Union['Actor', ActorGroup])->Sequence['Actor']:
         if isinstance(other, Actor):

@@ -4,8 +4,8 @@ game.start()
 
 # Create some shapes
 rect = game.create_rect(60, 60, 100, 100, "blue")
-ellipse = game.create_ellipse(80, 80, 500, 500, "yellow")
-triangle = game.create_polygon(3, 60, 60, 400, 400, color="green")
+ellipse = game.create_ellipse(80, 80, 200, 200, "yellow")
+triangle = game.create_polygon(3, 60, 60, 300, 300, color="green")
 
 # add new costume for triangle
 triangle.add_costume_polygon("collision", 3, 60, 60, color="red")

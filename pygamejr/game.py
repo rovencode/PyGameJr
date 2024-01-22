@@ -104,7 +104,7 @@ def create_polygon_any(points:List[Tuple[int, int]],
     actor = Actor(x=x, y=y)
     _actors.add(actor)
 
-    points = [(x - x, y - y) for x, y in points]
+    points = [(a - x, b - y) for a, b in points]
 
     actor.add_costume_polygon_any("", points, color, border)
     actor.set_costume("")
@@ -241,6 +241,9 @@ def too_top(actor:Actor)->bool:
     return actor.rect.top < 0
 def too_bottom(actor:Actor)->bool:
     return actor.rect.bottom > get_screen_size()[1]
+
+def mouse_xy()->Tuple[int, int]:
+    return pygame.mouse.get_pos()
 
 def end():
     global _running
