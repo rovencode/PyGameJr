@@ -1,10 +1,13 @@
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict, Union, Sequence
 import math
 import os
 import pygame
 from pygamejr import utils
 
-_images = {} # cache of all loaded images
+RGBAOutput = Tuple[int, int, int, int]
+PyGameColor = Union[pygame.Color, int, str, Tuple[int, int, int], RGBAOutput, Sequence[int]]
+
+_images:Dict[str, pygame.Surface] = {} # cache of all loaded images
 
 def get_image(image_path:Optional[str], cache=True)->Optional[pygame.Surface]:
     """
@@ -62,3 +65,4 @@ def get_bounding_rect(polygon_points:List[Tuple[int, int]])->pygame.Rect:
     bounding_rect = pygame.Rect(top_left_x, top_left_y, bottom_right_x - top_left_x, bottom_right_y - top_left_y)
 
     return bounding_rect
+

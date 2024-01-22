@@ -2,17 +2,15 @@ from pygamejr import game
 
 game.start()
 
-ball = game.create_sprite("ball.gif", 100, 100)
-x_speed, y_speed = 2, 2
+ball = game.create_image("ball.gif", 100, 100)
+x_speed, y_speed = 4, 4
 
 while True:
     ball.move(x_speed, y_speed)
 
-    rect = ball.rect()
-
-    if rect.left < 0 or rect.right > game.width:
+    if game.too_left(ball) or game.too_right(ball):
         x_speed = -x_speed
-    if rect.top < 0 or rect.bottom > game.height:
+    if game.too_top(ball) or game.too_bottom(ball):
         y_speed = -y_speed
 
     game.update()

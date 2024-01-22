@@ -1,28 +1,30 @@
 import math
 from dataclasses import dataclass
-from typing import List, Tuple, Optional, Set, Dict, Any, Union
+from typing import List, Tuple, Optional, Set, Dict, Any, Union, Callable
 from enum import Enum
 
 import pygame
 
 from pygamejr import utils
 from pygamejr import common
-from pygamejr.actor import Actor, ActorType
+from pygamejr.actor import Actor, ActorGroup
+from pygamejr.common import PyGameColor
 
 _running = False # is game currently running?
 
 clock = pygame.time.Clock() # game clock
 screen:Optional[pygame.Surface] = None # game screen
 
-_actors = [] # list of actors
+_actors = pygame.sprite.Group() # list of actors
 down_keys = set()   # keys currently down
 down_mousbuttons = set()  # mouse buttons currently down
 
 @dataclass
 class ScreenProps:
+    """Screen properties"""
     width:int=1280
     height:int=720
-    color:pygame.ColorValue="purple"
+    color:PyGameColor="purple"
     fps:int=60
     image_path:Optional[str]=None
     image:Optional[pygame.Surface]=None # image to display on screen
@@ -30,6 +32,7 @@ class ScreenProps:
 _screen_props = ScreenProps()
 
 def is_running()->bool:
+    """Is the game currently running?"""
     return _running
 
 def keep_running():
@@ -39,7 +42,7 @@ def keep_running():
     while _running:
         update()
 
-def handle(event_method, handler):
+def handle(event_method:Callable, handler:Callable)->None:
     """
     Assign a handler to a given event method.
 
@@ -59,47 +62,64 @@ def handle(event_method, handler):
     setattr(self, method_name, handler.__get__(self, type(self)))
 
 
-def create_sprite(image_path:str, x:int, y:int) -> Actor:
-    actor = Actor(type=ActorType.image,
-                  draw_kwargs={'image_path': image_path, 'x': x, 'y': y})
-    _actors.append(actor)
+def create_image(image_path_or_surface:Union[str, pygame.Surface], x:int, y:int,
+                  transparent_color:Optional[PyGameColor]=None) -> Actor:
+
+    actor = Actor(x=x, y=y)
+    _actors.add(actor)
+
+    actor.add_costume_image("", image_path_or_surface, transparent_color)
+    actor.set_costume("")
+
     return actor
 
-def create_rect(width:int=20, height:int=20, x:int=0, y:int=0, color:str="red", border=0) -> Actor:
-    actor = Actor(type=ActorType.rect,
-                  draw_kwargs={'rect': pygame.Rect(x, y, width, height),
-                               'color': color, 'width': border})
-    _actors.append(actor)
+def create_rect(width:int=20, height:int=20, x:int=0, y:int=0,
+                color:PyGameColor="red", border=0) -> Actor:
+
+    actor = Actor(x=x, y=y)
+    _actors.add(actor)
+
+    actor.add_costume_rect("", width, height, color, border)
+    actor.set_costume("")
+
     return actor
 
-def create_ellipse(width:int=20, height:int=20, x:int=0, y:int=0, color:str="yellow", border=0) -> Actor:
-    actor = Actor(type=ActorType.ellipse,
-                  draw_kwargs={'rect': pygame.Rect(x, y, width, height),
-                               'color': color, 'width': border})
-    _actors.append(actor)
+def create_ellipse(width:int=20, height:int=20, x:int=0, y:int=0,
+                   color:PyGameColor="yellow", border=0) -> Actor:
+
+    actor = Actor(x=x, y=y)
+    _actors.add(actor)
+
+    actor.add_costume_ellipse("", width, height, color, border)
+    actor.set_costume("")
+
+    return actor
+
+def create_polygon_any(points:List[Tuple[int, int]],
+                       color:PyGameColor="green", border=0) -> Actor:
+
+    bounding_rect = common.get_bounding_rect(points)
+    x, y = bounding_rect.x, bounding_rect.y
+
+    actor = Actor(x=x, y=y)
+    _actors.add(actor)
+
+    points = [(x - x, y - y) for x, y in points]
+
+    actor.add_costume_polygon_any("", points, color, border)
+    actor.set_costume("")
+
     return actor
 
 def create_polygon(sides:int, width:int=20, height:int=20, x:int=0, y:int=0,
-                   color:str="green", border=0) -> Actor:
-    actor = Actor(type=ActorType.polygon,
-                  draw_kwargs={'points': common.polygon_points(sides, x, y, width, height),
-                               'color': color, 'width': border})
-    _actors.append(actor)
-    return actor
+                   color:PyGameColor="green", border=0) -> Actor:
 
-def create_line(start_x:int, start_y:int, end_x:int, end_y:int, color:str="red", border=0) -> Actor:
-    actor = Actor(type=ActorType.line,
-                  draw_kwargs={'start_pos': (start_x, start_y),
-                               'end_pos': (end_x, end_y),
-                               'color': color, 'width': border})
-    _actors.append(actor)
-    return actor
+    actor = Actor(x=x, y=y)
+    _actors.add(actor)
 
-def create_polygon_any(points:List[Tuple[int, int]], color:str="green", border=0) -> Actor:
-    actor = Actor(type=ActorType.polygon,
-                  draw_kwargs={'points': points,
-                               'color': color, 'width': border})
-    _actors.append(actor)
+    actor.add_costume_polygon("", sides, width, height, color, border)
+    actor.set_costume("")
+
     return actor
 
 def start(screen_title:str=_screen_props.title,
@@ -122,24 +142,28 @@ def start(screen_title:str=_screen_props.title,
 
     _running = True
 
+def get_screen_size()->Tuple[int, int]:
+    return _screen_props.width, _screen_props.height
+
 def set_screen_size(width:int, height:int):
     global screen
     screen = pygame.display.set_mode((width, height))
     _screen_props.width = width
     _screen_props.height = height
-def set_screen_color(color:pygame.ColorValue):
-    global screen
-    screen.fill(color)
+
+def set_screen_color(color:PyGameColor):
     _screen_props.color = color
+
 def set_screen_image(image_path:Optional[str]):
-    global screen_image
     if image_path is not None:
         _screen_props.image = common.get_image(image_path)
     else:
         _screen_props.image = None
     _screen_props.image_path = image_path
+
 def set_screen_fps(fps:int):
     _screen_props.fps = fps
+
 def set_screen_title(title:str):
     pygame.display.set_caption(title)
     _screen_props.title = title
@@ -194,21 +218,29 @@ def update():
 
     assert screen is not None, "screen is None"
 
-    if color:
-        screen.fill(color)
-    if screen_image:
-        screen.blit(screen_image, (0, 0))
+    if _screen_props.color:
+        screen.fill(_screen_props.color)
+    if _screen_props.image:
+        screen.blit(_screen_props.image, (0, 0))
 
-    for actor in _actors:
-        actor.draw(screen)
+    _actors.update()
+    _actors.draw(screen)
 
     # flip() the display to put your work on screen
     pygame.display.flip()
 
     # This will pause the game loop until 1/60 seconds have passed
     # since the last tick. This limits the loop to _running at 60 FPS.
-    clock.tick(fps)
+    clock.tick(_screen_props.fps)
 
+def too_left(actor:Actor)->bool:
+    return actor.rect.left < 0
+def too_right(actor:Actor)->bool:
+    return actor.rect.right > get_screen_size()[0]
+def too_top(actor:Actor)->bool:
+    return actor.rect.top < 0
+def too_bottom(actor:Actor)->bool:
+    return actor.rect.bottom > get_screen_size()[1]
 
 def end():
     global _running

@@ -2,12 +2,15 @@ from pygamejr import game
 
 game.start()
 
-# Create a rectangle
-rect = game.create_rect(20, 20, 100, 100, "blue")
-ellipse = game.create_ellipse(20, 20, 50, 50, "red")
-triangle = game.create_polygon(3, 20, 20, 80, 80, color="black")
-line = game.create_line(250, 100, 300, 300, "green", border=5)
+# Create some shapes
+rect = game.create_rect(60, 60, 100, 100, "blue")
+ellipse = game.create_ellipse(80, 80, 500, 500, "yellow")
+triangle = game.create_polygon(3, 60, 60, 400, 400, color="green")
 
+# add new costume for triangle
+triangle.add_costume_polygon("collision", 3, 60, 60, color="red")
+
+# Move triangle using keyboard
 def triangle_keyboard(triangle, keys):
     if "left" in keys:
         triangle.move(-2, 0)
@@ -19,11 +22,10 @@ def triangle_keyboard(triangle, keys):
         triangle.move(0, 2)
 
     if triangle.touches([rect, ellipse]):
-        triangle.set_color("yellow")
+        triangle.set_costume("collision")
     else:
-        triangle.set_color("black")
+        triangle.set_costume("")
 
 game.handle(triangle.on_keypress, triangle_keyboard)
 
 game.keep_running()
-]

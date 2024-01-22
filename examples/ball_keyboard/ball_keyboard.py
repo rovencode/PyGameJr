@@ -2,17 +2,17 @@ from pygamejr import game
 
 game.start()
 
-ball = game.create_sprite("ball.gif", 100, 100)
-
+ball = game.create_image("ball.gif", 100, 100)
+speed = 4
 def ball_keyboard(ball, keys):
     if "left" in keys:
-        ball.move(-2, 0)
+        ball.move(-speed, 0)
     elif "right" in keys:
-        ball.move(2, 0)
+        ball.move(speed, 0)
     elif "up" in keys:
-        ball.move(0, -2)
+        ball.move(0, -speed)
     elif "down" in keys:
-        ball.move(0, 2)
+        ball.move(0, speed)
 
 game.handle(ball.on_keypress, ball_keyboard)
 
