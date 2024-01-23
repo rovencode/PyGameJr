@@ -64,9 +64,18 @@ class AnimationSpec:
     loop:bool=True
     started:bool=False
 
+@dataclass
+class PhysicsSpec:
+    enabled:bool = False
+    velocity:pygame.math.Vector2 = pygame.math.Vector2(0, 0)
+    acceleration:pygame.math.Vector2 = pygame.math.Vector2(0, 0)
+
 class Actor(pygame.sprite.Sprite):
-    def __init__(self, x:int, y:int, enable_transparency:bool=True,
-                 angle=0.0, scale_xy:Tuple[float,float]=(1.0, 1.0)):
+    def __init__(self, x:int, y:int,
+                 enable_transparency:bool=True,
+                 angle=0.0,
+                 scale_xy:Tuple[float,float]=(1.0, 1.0),
+                 enable_physics:bool=False):
 
         super().__init__()
 
@@ -74,6 +83,7 @@ class Actor(pygame.sprite.Sprite):
         self.angle = angle
         self.scale_xy = scale_xy
         self.animation = AnimationSpec()
+        self.physics = PhysicsSpec(enabled=enable_physics)
 
         self.costumes:Dict[str, List[pygame.Surface]] = {
             COSTUME_ZERO: [pygame.Surface((0, 0))]

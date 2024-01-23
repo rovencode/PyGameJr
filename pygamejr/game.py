@@ -19,6 +19,11 @@ _actors = pygame.sprite.Group() # list of actors
 down_keys = set()   # keys currently down
 down_mousbuttons = set()  # mouse buttons currently down
 
+# physics
+_ground_y:Optional[float]=None
+_gravity:Optional[pygame.math.Vector2]=None
+
+
 @dataclass
 class ScreenProps:
     """Screen properties"""
@@ -66,9 +71,15 @@ def handle(event_method:Callable, handler:Callable)->None:
 def create_image(image_path_or_surface:Union[str, Iterable[str], pygame.Surface],
                  x:int, y:int,
                 transparent_color:Optional[PyGameColor]=None,
-                scale_xy:Optional[Tuple[float,float]]=None) -> Actor:
+                enable_transparency:bool=True,
+                angle=0.0,
+                scale_xy:Tuple[float,float]=(1.0, 1.0),
+                enable_physics:bool=False) -> Actor:
 
-    actor = Actor(x=x, y=y)
+    actor = Actor(x=x, y=y,
+                  enable_transparency=enable_transparency,
+                  angle=angle,
+                  enable_physics=enable_physics)
     _actors.add(actor)
 
     actor.add_costume_image("", image_path_or_surface,
@@ -79,9 +90,15 @@ def create_image(image_path_or_surface:Union[str, Iterable[str], pygame.Surface]
     return actor
 
 def create_rect(width:int=20, height:int=20, x:int=0, y:int=0,
-                color:PyGameColor="red", border=0) -> Actor:
+                color:PyGameColor="red", border=0,
+                angle=0.0,
+                scale_xy:Tuple[float,float]=(1.0, 1.0),
+                enable_physics:bool=False) -> Actor:
 
-    actor = Actor(x=x, y=y)
+    actor = Actor(x=x, y=y,
+                  angle=angle,
+                  scale_xy=scale_xy,
+                  enable_physics=enable_physics)
     _actors.add(actor)
 
     actor.add_costume_rect("", width, height, color, border)
@@ -90,9 +107,15 @@ def create_rect(width:int=20, height:int=20, x:int=0, y:int=0,
     return actor
 
 def create_ellipse(width:int=20, height:int=20, x:int=0, y:int=0,
-                   color:PyGameColor="yellow", border=0) -> Actor:
+                color:PyGameColor="yellow", border=0,
+                angle=0.0,
+                scale_xy:Tuple[float,float]=(1.0, 1.0),
+                enable_physics:bool=False) -> Actor:
 
-    actor = Actor(x=x, y=y)
+    actor = Actor(x=x, y=y,
+                  angle=angle,
+                  scale_xy=scale_xy,
+                  enable_physics=enable_physics)
     _actors.add(actor)
 
     actor.add_costume_ellipse("", width, height, color, border)
@@ -101,12 +124,18 @@ def create_ellipse(width:int=20, height:int=20, x:int=0, y:int=0,
     return actor
 
 def create_polygon_any(points:List[Tuple[int, int]],
-                       color:PyGameColor="green", border=0) -> Actor:
+                color:PyGameColor="green", border=0,
+                angle=0.0,
+                scale_xy:Tuple[float,float]=(1.0, 1.0),
+                enable_physics:bool=False) -> Actor:
 
     bounding_rect = common.get_bounding_rect(points)
     x, y = bounding_rect.x, bounding_rect.y
 
-    actor = Actor(x=x, y=y)
+    actor = Actor(x=x, y=y,
+                  angle=angle,
+                  scale_xy=scale_xy,
+                  enable_physics=enable_physics)
     _actors.add(actor)
 
     points = [(a - x, b - y) for a, b in points]
@@ -117,9 +146,15 @@ def create_polygon_any(points:List[Tuple[int, int]],
     return actor
 
 def create_polygon(sides:int, width:int=20, height:int=20, x:int=0, y:int=0,
-                   color:PyGameColor="green", border=0) -> Actor:
+                color:PyGameColor="green", border=0,
+                angle=0.0,
+                scale_xy:Tuple[float,float]=(1.0, 1.0),
+                enable_physics:bool=False) -> Actor:
 
-    actor = Actor(x=x, y=y)
+    actor = Actor(x=x, y=y,
+                  angle=angle,
+                  scale_xy=scale_xy,
+                  enable_physics=enable_physics)
     _actors.add(actor)
 
     actor.add_costume_polygon("", sides, width, height, color, border)
@@ -127,14 +162,32 @@ def create_polygon(sides:int, width:int=20, height:int=20, x:int=0, y:int=0,
 
     return actor
 
+def apply_physics():
+    """
+    Apply physics to all actors.
+
+    :param ground_y: The y coordinate of the ground.
+    :param gravity: The gravity to apply.
+    """
+    for actor in _actors:
+        if actor.physics.enabled:
+            if _ground_y is not None and actor.rect.bottom >= _ground_y*get_screen_height():
+                actor.rect.bottom = _ground_y*get_screen_height()
+                actor.physics.velocity.y = 0
+            else:
+                actor.physics.velocity += _gravity
+                actor.rect.move_ip(actor.physics.velocity.x, actor.physics.velocity.y)
+
 def start(screen_title:str=_screen_props.title,
           screen_width=_screen_props.width,
           screen_height=_screen_props.height,
           screen_color:PyGameColor=_screen_props.color,
           screen_image_path:Optional[str]=_screen_props.image_path,
-          screen_fps=_screen_props.fps):
+          screen_fps=_screen_props.fps,
+          ground_y:Optional[float]=None,
+          gravity:Optional[float]=None):
 
-    global  _running
+    global  _running, _ground_y, _gravity
 
     # pygame setup
     pygame.init()
@@ -146,10 +199,15 @@ def start(screen_title:str=_screen_props.title,
     set_screen_title(screen_title)
 
     _running = True
+    _ground_y = ground_y
+    _gravity = pygame.math.Vector2(0, gravity) if gravity is not None else None
 
 def get_screen_size()->Tuple[int, int]:
     return _screen_props.width, _screen_props.height
-
+def get_screen_width()->int:
+    return _screen_props.width
+def get_screen_height()->int:
+    return _screen_props.height
 def set_screen_size(width:int, height:int):
     global screen
     screen = pygame.display.set_mode((width, height))
@@ -189,6 +247,8 @@ def update():
 
     if not _running:
         return
+
+    apply_physics()
 
     # poll for events
     # pygame.QUIT event means the user clicked X to close your window
