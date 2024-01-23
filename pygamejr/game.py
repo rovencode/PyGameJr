@@ -216,8 +216,8 @@ def separate_rects(r1, r2):
     ds2 = pygame.math.Vector2(l2[0]) - pygame.math.Vector2(l2[1])
 
     # Move the rectangles
-    r1.move_ip(ds1)
-    r2.move_ip(ds2)
+    r1.move_ip(-ds1)
+    r2.move_ip(-ds2)
 
     return r1, r2, ir_c
 
@@ -263,9 +263,12 @@ def apply_physics():
             new_v[sprite] += sprite.physics.velocity
         for colliding_sprite in colliding_sprites:
             if colliding_sprite not in processed_pairs[sprite]:
-                r1, r2, cp = separate_rects(sprite.rect, colliding_sprite.rect)
-                r1 = sprite.rect if sprite.physics.fixed else r1
-                r2 = colliding_sprite.rect if colliding_sprite.physics.fixed else r2
+                # r1, r2, cp = separate_rects(sprite.rect, colliding_sprite.rect)
+                # r1 = sprite.rect if sprite.physics.fixed else r1
+                # r2 = colliding_sprite.rect if colliding_sprite.physics.fixed else r2
+
+                r1, r2 = sprite.rect, colliding_sprite.rect
+                cp = find_overlap_center(r1, r2)
 
                 # compute post collision velocities
                 vn1, vn2 = post_collision_velocities(sprite.physics.velocity, colliding_sprite.physics.velocity,
@@ -279,8 +282,8 @@ def apply_physics():
                 processed_pairs[colliding_sprite].add(sprite)
 
         if not sprite.physics.fixed:
-            ds = new_ds[sprite]
-            sprite.rect.move_ip(ds.x, ds.y)
+            # ds = new_ds[sprite]
+            # sprite.rect.move_ip(ds.x, ds.y)
 
             net_force = sprite.physics.force + _gravity * sprite.physics.mass
             new_v[sprite] += (net_force / sprite.physics.mass) * dt
