@@ -1,9 +1,10 @@
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, Iterable
 from dataclasses import dataclass, fields
 from enum import Enum
 import math
 import os
 from collections.abc import Sequence
+import timeit
 
 import pygame
 
@@ -56,6 +57,13 @@ class CostumeSpec:
     name:str    # name of the costume
     index:int = 0 # index of the image for this costume
 
+@dataclass
+class AnimationSpec:
+    frame_time_s:float=0.1
+    last_frame_time:float=timeit.default_timer()
+    loop:bool=True
+    started:bool=False
+
 class Actor(pygame.sprite.Sprite):
     def __init__(self, x:int, y:int, enable_transparency:bool=True,
                  angle=0.0, scale_xy:Tuple[float,float]=(1.0, 1.0)):
@@ -65,6 +73,7 @@ class Actor(pygame.sprite.Sprite):
         self.enable_transparency = enable_transparency
         self.angle = angle
         self.scale_xy = scale_xy
+        self.animation = AnimationSpec()
 
         self.costumes:Dict[str, List[pygame.Surface]] = {
             COSTUME_ZERO: [pygame.Surface((0, 0))]
@@ -94,6 +103,19 @@ class Actor(pygame.sprite.Sprite):
 
     def update(self, *args:Any, **kwargs:Any)->None:
         """Update the sprite's position and image."""
+
+        # animate the image if needed
+        if self.animation.started:
+            if timeit.default_timer() - self.animation.last_frame_time >= self.animation.frame_time_s:
+                self.current_costume.index += 1
+                if self.current_costume.index >= len(self.costumes[self.current_costume.name]):
+                    if self.animation.loop:
+                        self.current_costume.index = 0
+                    else:
+                        self.current_costume.index = len(self.costumes[self.current_costume.name]) - 1
+                        self.animation.started = False
+                self.animation.last_frame_time = timeit.default_timer()
+
         # start from current cosume
         self.image = self.get_costume_image(self.current_costume)
 
@@ -128,33 +150,56 @@ class Actor(pygame.sprite.Sprite):
         target_vector = pygame.math.Vector2(xy) - pygame.math.Vector2(self.rect.center)
         return target_vector.length()
 
+    def start_animation(self, frame_time_s:float=0.1, loop:bool=True)->None:
+        """Cycle through images for current costume"""
+        self.animation = AnimationSpec(frame_time_s, timeit.default_timer(), loop, True)
+
+    def stop_animation(self)->None:
+        self.animation.started = False
+
     def add_costume_image(self, name:str,
-                          image_path_or_surface:Union[str, pygame.Surface],
+                          image_path_or_surface:Union[str, Iterable[str], pygame.Surface],
                           transparent_color:Optional[PyGameColor]=None,
+                          scale_xy:Optional[Tuple[float,float]]=None,
                           change=False) -> pygame.Surface:
-        # load image
+
         if isinstance(image_path_or_surface, str):
-            image = common.get_image(image_path_or_surface)
-            surface = image if image else pygame.Surface((0, 0))
-        else:
-            surface = image_path_or_surface
+            image_path_or_surface = [image_path_or_surface] # type: ignore
 
-        # set transparency
-        if transparent_color is not None:
-            surface.set_colorkey(transparent_color)
+        surfaces = []
+        if isinstance(image_path_or_surface, Iterable):
+            for image_path in image_path_or_surface:
+                image = common.get_image(image_path)
+                surfaces.append(image if image else pygame.Surface((0, 0)))
+        elif isinstance(image_path_or_surface, pygame.Surface):
+            surfaces.append(image_path_or_surface)
         else:
-            if self.enable_transparency and common.has_transparency(surface):
-                surface = surface.convert_alpha()
+            raise Exception(f"Invalid image_path_or_surface: {image_path_or_surface}")
 
-        # add to costumes
         if name not in self.costumes:
             self.costumes[name] = []
-        self.costumes[name].append(surface)
+
+        for surface in surfaces:
+            # scale the image if needed
+            if scale_xy is not None and scale_xy != (1.0, 1.0):
+                surface = pygame.transform.scale(surface,
+                    (int(surface.get_width() * scale_xy[0]),
+                        int(surface.get_height() * scale_xy[1])))
+
+            # set transparency
+            if transparent_color is not None:
+                surface.set_colorkey(transparent_color)
+            else:
+                if self.enable_transparency and common.has_transparency(surface):
+                    surface = surface.convert_alpha()
+
+            # add to costumes
+            self.costumes[name].append(surface)
 
         if change:
-            self.set_costume(name)
+            self.set_costume(name, index=0)
 
-        return surface
+        return surfaces[0]
 
     def add_costume_rect(self, name:str,
                          width:int=20, height:int=20,

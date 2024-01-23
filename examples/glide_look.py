@@ -9,8 +9,8 @@ while game.is_running():
     triangle.glide_to(game.mouse_xy(), speed=2)
 
     if triangle.touches(game.mouse_xy()):
-        triangle.add_text("coll", "BOOM!!")
+        triangle.add_text("boom", "BOOM!!")
     else:
-        triangle.remove_text("coll")
+        triangle.remove_text("boom")
 
     game.update()

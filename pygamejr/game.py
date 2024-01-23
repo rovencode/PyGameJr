@@ -1,6 +1,6 @@
 import math
 from dataclasses import dataclass
-from typing import List, Tuple, Optional, Set, Dict, Any, Union, Callable
+from typing import List, Tuple, Optional, Set, Dict, Any, Union, Callable, Iterable
 from enum import Enum
 
 import pygame
@@ -28,6 +28,7 @@ class ScreenProps:
     fps:int=60
     image_path:Optional[str]=None
     image:Optional[pygame.Surface]=None # image to display on screen
+    image_scaled:Optional[pygame.Surface]=None # scaled image to display on screen
     title:str="PyGameJr Rocks"
 _screen_props = ScreenProps()
 
@@ -62,13 +63,17 @@ def handle(event_method:Callable, handler:Callable)->None:
     setattr(self, method_name, handler.__get__(self, type(self)))
 
 
-def create_image(image_path_or_surface:Union[str, pygame.Surface], x:int, y:int,
-                  transparent_color:Optional[PyGameColor]=None) -> Actor:
+def create_image(image_path_or_surface:Union[str, Iterable[str], pygame.Surface],
+                 x:int, y:int,
+                transparent_color:Optional[PyGameColor]=None,
+                scale_xy:Optional[Tuple[float,float]]=None) -> Actor:
 
     actor = Actor(x=x, y=y)
     _actors.add(actor)
 
-    actor.add_costume_image("", image_path_or_surface, transparent_color)
+    actor.add_costume_image("", image_path_or_surface,
+                            transparent_color=transparent_color,
+                            scale_xy=scale_xy)
     actor.set_costume("")
 
     return actor
@@ -125,7 +130,7 @@ def create_polygon(sides:int, width:int=20, height:int=20, x:int=0, y:int=0,
 def start(screen_title:str=_screen_props.title,
           screen_width=_screen_props.width,
           screen_height=_screen_props.height,
-          screen_color:Optional[str]=_screen_props.color,
+          screen_color:PyGameColor=_screen_props.color,
           screen_image_path:Optional[str]=_screen_props.image_path,
           screen_fps=_screen_props.fps):
 
@@ -150,15 +155,23 @@ def set_screen_size(width:int, height:int):
     screen = pygame.display.set_mode((width, height))
     _screen_props.width = width
     _screen_props.height = height
+    _scale_screen_image()
 
 def set_screen_color(color:PyGameColor):
     _screen_props.color = color
+
+def _scale_screen_image():
+    if _screen_props.image:
+        _screen_props.image_scaled = pygame.transform.scale(_screen_props.image, get_screen_size())
+    else:
+        _screen_props.image_scaled = None
 
 def set_screen_image(image_path:Optional[str]):
     if image_path is not None:
         _screen_props.image = common.get_image(image_path)
     else:
         _screen_props.image = None
+    _scale_screen_image()
     _screen_props.image_path = image_path
 
 def set_screen_fps(fps:int):
@@ -220,8 +233,8 @@ def update():
 
     if _screen_props.color:
         screen.fill(_screen_props.color)
-    if _screen_props.image:
-        screen.blit(_screen_props.image, (0, 0))
+    if _screen_props.image_scaled:
+        screen.blit(_screen_props.image_scaled, (0, 0))
 
     _actors.update()
     _actors.draw(screen)
