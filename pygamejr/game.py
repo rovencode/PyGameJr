@@ -1,5 +1,6 @@
 import math
 from dataclasses import dataclass
+import timeit
 from typing import List, Tuple, Optional, Set, Dict, Any, Union, Callable, Iterable
 from enum import Enum
 
@@ -22,7 +23,7 @@ down_mousbuttons = set()  # mouse buttons currently down
 # physics
 _ground_y:Optional[float]=None
 _gravity:Optional[pygame.math.Vector2]=None
-
+_last_physics_time = 0
 
 @dataclass
 class ScreenProps:
@@ -74,12 +75,12 @@ def create_image(image_path_or_surface:Union[str, Iterable[str], pygame.Surface]
                 enable_transparency:bool=True,
                 angle=0.0,
                 scale_xy:Tuple[float,float]=(1.0, 1.0),
-                enable_physics:bool=False) -> Actor:
+                physics=common.Physics(enabled=False)) -> Actor:
 
     actor = Actor(x=x, y=y,
                   enable_transparency=enable_transparency,
                   angle=angle,
-                  enable_physics=enable_physics)
+                  physics=physics)
     _actors.add(actor)
 
     actor.add_costume_image("", image_path_or_surface,
@@ -93,12 +94,12 @@ def create_rect(width:int=20, height:int=20, x:int=0, y:int=0,
                 color:PyGameColor="red", border=0,
                 angle=0.0,
                 scale_xy:Tuple[float,float]=(1.0, 1.0),
-                enable_physics:bool=False) -> Actor:
+                physics=common.Physics(enabled=False)) -> Actor:
 
     actor = Actor(x=x, y=y,
                   angle=angle,
                   scale_xy=scale_xy,
-                  enable_physics=enable_physics)
+                  physics=physics)
     _actors.add(actor)
 
     actor.add_costume_rect("", width, height, color, border)
@@ -110,12 +111,12 @@ def create_ellipse(width:int=20, height:int=20, x:int=0, y:int=0,
                 color:PyGameColor="yellow", border=0,
                 angle=0.0,
                 scale_xy:Tuple[float,float]=(1.0, 1.0),
-                enable_physics:bool=False) -> Actor:
+                physics=common.Physics(enabled=False)) -> Actor:
 
     actor = Actor(x=x, y=y,
                   angle=angle,
                   scale_xy=scale_xy,
-                  enable_physics=enable_physics)
+                  physics=physics)
     _actors.add(actor)
 
     actor.add_costume_ellipse("", width, height, color, border)
@@ -127,7 +128,7 @@ def create_polygon_any(points:List[Tuple[int, int]],
                 color:PyGameColor="green", border=0,
                 angle=0.0,
                 scale_xy:Tuple[float,float]=(1.0, 1.0),
-                enable_physics:bool=False) -> Actor:
+                physics=common.Physics(enabled=False)) -> Actor:
 
     bounding_rect = common.get_bounding_rect(points)
     x, y = bounding_rect.x, bounding_rect.y
@@ -135,7 +136,7 @@ def create_polygon_any(points:List[Tuple[int, int]],
     actor = Actor(x=x, y=y,
                   angle=angle,
                   scale_xy=scale_xy,
-                  enable_physics=enable_physics)
+                  physics=physics)
     _actors.add(actor)
 
     points = [(a - x, b - y) for a, b in points]
@@ -149,12 +150,12 @@ def create_polygon(sides:int, width:int=20, height:int=20, x:int=0, y:int=0,
                 color:PyGameColor="green", border=0,
                 angle=0.0,
                 scale_xy:Tuple[float,float]=(1.0, 1.0),
-                enable_physics:bool=False) -> Actor:
+                physics=common.Physics(enabled=False)) -> Actor:
 
     actor = Actor(x=x, y=y,
                   angle=angle,
                   scale_xy=scale_xy,
-                  enable_physics=enable_physics)
+                  physics=physics)
     _actors.add(actor)
 
     actor.add_costume_polygon("", sides, width, height, color, border)
@@ -165,18 +166,23 @@ def create_polygon(sides:int, width:int=20, height:int=20, x:int=0, y:int=0,
 def apply_physics():
     """
     Apply physics to all actors.
-
-    :param ground_y: The y coordinate of the ground.
-    :param gravity: The gravity to apply.
     """
+    global _last_physics_time
+    if _last_physics_time == 0:
+        _last_physics_time = timeit.default_timer()
+        return
+    dt = timeit.default_timer() - _last_physics_time
+
     for actor in _actors:
         if actor.physics.enabled:
             if _ground_y is not None and actor.rect.bottom >= _ground_y*get_screen_height():
                 actor.rect.bottom = _ground_y*get_screen_height()
                 actor.physics.velocity.y = 0
             else:
-                actor.physics.velocity += _gravity
-                actor.rect.move_ip(actor.physics.velocity.x, actor.physics.velocity.y)
+                net_force = actor.physics.force + _gravity * actor.physics.mass
+                actor.physics.velocity += (net_force / actor.physics.mass) * dt
+                ds = actor.physics.velocity * dt
+                actor.rect.move_ip(ds.x, ds.y)
 
 def start(screen_title:str=_screen_props.title,
           screen_width=_screen_props.width,

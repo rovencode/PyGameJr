@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Optional, List, Tuple, Dict, Union, Sequence
 import math
 import os
@@ -80,3 +81,11 @@ def has_transparency(surface:pygame.Surface)->bool:
     else:
         # No transparency
         return False
+
+
+@dataclass
+class Physics:
+    enabled:bool = False
+    velocity:pygame.math.Vector2 = pygame.math.Vector2(0, 0)
+    force:pygame.math.Vector2 = pygame.math.Vector2(0, 0)
+    mass:float = 1.0
