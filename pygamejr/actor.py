@@ -67,9 +67,9 @@ class AnimationSpec:
 
 class Actor(pygame.sprite.Sprite):
     def __init__(self, x:int, y:int,
-                 enable_transparency:bool=True,
                  angle=0.0,
                  scale_xy:Tuple[float,float]=(1.0, 1.0),
+                 enable_transparency:bool=True,
                  physics=common.Physics(enabled=False)):
 
         super().__init__()

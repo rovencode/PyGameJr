@@ -16,12 +16,13 @@ _running = False # is game currently running?
 clock = pygame.time.Clock() # game clock
 screen:Optional[pygame.Surface] = None # game screen
 
-_actors = pygame.sprite.Group() # list of actors
+_actors = ActorGroup() # list of all actors
+_screen_walls = ActorGroup() # list of all wall
+_physics_actors = ActorGroup() # list of all actors with physics enabled
 down_keys = set()   # keys currently down
 down_mousbuttons = set()  # mouse buttons currently down
 
 # physics
-_ground_y:Optional[float]=None
 _gravity:Optional[pygame.math.Vector2]=None
 _last_physics_time = 0
 
@@ -68,20 +69,24 @@ def handle(event_method:Callable, handler:Callable)->None:
     # Set the handler to replace the original event method, making sure it's bound
     setattr(self, method_name, handler.__get__(self, type(self)))
 
+def _add_actor(actor:Actor):
+    _actors.add(actor)
+    if actor.physics.enabled:
+        _physics_actors.add(actor)
 
 def create_image(image_path_or_surface:Union[str, Iterable[str], pygame.Surface],
                  x:int, y:int,
                 transparent_color:Optional[PyGameColor]=None,
-                enable_transparency:bool=True,
                 angle=0.0,
                 scale_xy:Tuple[float,float]=(1.0, 1.0),
+                enable_transparency:bool=True,
                 physics=common.Physics(enabled=False)) -> Actor:
 
     actor = Actor(x=x, y=y,
-                  enable_transparency=enable_transparency,
                   angle=angle,
+                  enable_transparency=enable_transparency,
                   physics=physics)
-    _actors.add(actor)
+    _add_actor(actor)
 
     actor.add_costume_image("", image_path_or_surface,
                             transparent_color=transparent_color,
@@ -94,13 +99,15 @@ def create_rect(width:int=20, height:int=20, x:int=0, y:int=0,
                 color:PyGameColor="red", border=0,
                 angle=0.0,
                 scale_xy:Tuple[float,float]=(1.0, 1.0),
+                enable_transparency:bool=True,
                 physics=common.Physics(enabled=False)) -> Actor:
 
     actor = Actor(x=x, y=y,
                   angle=angle,
                   scale_xy=scale_xy,
+                  enable_transparency=enable_transparency,
                   physics=physics)
-    _actors.add(actor)
+    _add_actor(actor)
 
     actor.add_costume_rect("", width, height, color, border)
     actor.set_costume("")
@@ -111,13 +118,15 @@ def create_ellipse(width:int=20, height:int=20, x:int=0, y:int=0,
                 color:PyGameColor="yellow", border=0,
                 angle=0.0,
                 scale_xy:Tuple[float,float]=(1.0, 1.0),
+                enable_transparency:bool=True,
                 physics=common.Physics(enabled=False)) -> Actor:
 
     actor = Actor(x=x, y=y,
                   angle=angle,
                   scale_xy=scale_xy,
+                  enable_transparency=enable_transparency,
                   physics=physics)
-    _actors.add(actor)
+    _add_actor(actor)
 
     actor.add_costume_ellipse("", width, height, color, border)
     actor.set_costume("")
@@ -128,6 +137,7 @@ def create_polygon_any(points:List[Tuple[int, int]],
                 color:PyGameColor="green", border=0,
                 angle=0.0,
                 scale_xy:Tuple[float,float]=(1.0, 1.0),
+                enable_transparency:bool=True,
                 physics=common.Physics(enabled=False)) -> Actor:
 
     bounding_rect = common.get_bounding_rect(points)
@@ -136,8 +146,9 @@ def create_polygon_any(points:List[Tuple[int, int]],
     actor = Actor(x=x, y=y,
                   angle=angle,
                   scale_xy=scale_xy,
+                  enable_transparency=enable_transparency,
                   physics=physics)
-    _actors.add(actor)
+    _add_actor(actor)
 
     points = [(a - x, b - y) for a, b in points]
 
@@ -150,18 +161,84 @@ def create_polygon(sides:int, width:int=20, height:int=20, x:int=0, y:int=0,
                 color:PyGameColor="green", border=0,
                 angle=0.0,
                 scale_xy:Tuple[float,float]=(1.0, 1.0),
+                enable_transparency:bool=True,
                 physics=common.Physics(enabled=False)) -> Actor:
 
     actor = Actor(x=x, y=y,
                   angle=angle,
                   scale_xy=scale_xy,
+                  enable_transparency=enable_transparency,
                   physics=physics)
-    _actors.add(actor)
+    _add_actor(actor)
 
     actor.add_costume_polygon("", sides, width, height, color, border)
     actor.set_costume("")
 
     return actor
+
+def create_screen_walls(left:bool=False, right:bool=False,
+                        top:bool=False, bottom:bool=False,
+                        color:PyGameColor=(0, 0, 0, 0),
+                        border=0,
+                        enable_transparency:bool=False,
+                        enable_physcs:bool=False):
+    global _screen_walls
+    physics = common.Physics(enabled=enable_physcs, fixed=True, infinite_wall=True)
+    if left:
+        actor = create_rect(width=1, height=get_screen_height(), x=0, y=0, color=color, border=border, enable_transparency=enable_transparency, physics=physics)
+        _screen_walls.add(actor)
+    if right:
+        actor = create_rect(width=1, height=get_screen_height(), x=get_screen_width()-border, y=0, color=color, border=border, enable_transparency=enable_transparency, physics=physics)
+        _screen_walls.add(actor)
+    if top:
+        actor = create_rect(width=get_screen_width(), height=1, x=0, y=0, color=color, border=border, enable_transparency=enable_transparency, physics=physics)
+        _screen_walls.add(actor)
+    if bottom:
+        actor = create_rect(width=get_screen_width(), height=1, x=0, y=get_screen_height()-border, color=color, border=border, enable_transparency=enable_transparency, physics=physics)
+        _screen_walls.add(actor)
+
+def find_overlap_center(rect1, rect2):
+    """ Find the center of the overlapping area of two rectangles """
+    overlap = rect1.clip(rect2)
+    return pygame.math.Vector2(overlap.center)
+
+def separate_rects(r1, r2):
+    r1 = r1.copy()
+    r2 = r2.copy()
+
+    ir = r1.clip(r2)
+    ir_c = ir.center
+
+    l1 = ir.clipline(ir.center, r1.center)
+    ds1 = pygame.math.Vector2(l1[0]) - pygame.math.Vector2(l1[1])
+
+    l2 = ir.clipline(ir.center, r2.center)
+    ds2 = pygame.math.Vector2(l2[0]) - pygame.math.Vector2(l2[1])
+
+    # Move the rectangles
+    r1.move_ip(ds1)
+    r2.move_ip(ds2)
+
+    return r1, r2, ir_c
+
+def post_collision_velocities(v1, v2, m1, m2, r1, r2, collision_point):
+    # Calculate normal and tangential components of the velocities
+    normal1 = (collision_point - pygame.math.Vector2(r1.center)).normalize()
+    v1n, v1t = v1.dot(normal1), v1 - v1.dot(normal1) * normal1
+    normal2 = (collision_point - pygame.math.Vector2(r2.center)).normalize()
+    v2n, v2t = v2.dot(normal2), v2 - v2.dot(normal2) * normal2
+
+    # Apply collision equations - conservation of momentum and kinetic energy
+    new_v1n = (v1n * (m1 - m2) + 2 * m2 * v2n) / (m1 + m2)
+    new_v2n = (v2n * (m2 - m1) + 2 * m1 * v1n) / (m1 + m2)
+
+    # Recombine components
+    new_v1 = new_v1n * normal1 + v1t
+    new_v2 = new_v2n * normal2 + v2t
+
+    # Return the final velocities
+    return (new_v1, new_v2)
+
 
 def apply_physics():
     """
@@ -172,17 +249,45 @@ def apply_physics():
         _last_physics_time = timeit.default_timer()
         return
     dt = timeit.default_timer() - _last_physics_time
+    _last_physics_time = timeit.default_timer()
 
-    for actor in _actors:
-        if actor.physics.enabled:
-            if _ground_y is not None and actor.rect.bottom >= _ground_y*get_screen_height():
-                actor.rect.bottom = _ground_y*get_screen_height()
-                actor.physics.velocity.y = 0
-            else:
-                net_force = actor.physics.force + _gravity * actor.physics.mass
-                actor.physics.velocity += (net_force / actor.physics.mass) * dt
-                ds = actor.physics.velocity * dt
-                actor.rect.move_ip(ds.x, ds.y)
+    # Check for collisions within the group
+    collisions = pygame.sprite.groupcollide(_physics_actors, _physics_actors, False, False)
+
+    assert len(collisions) == len(_physics_actors), "collisions: {} != _physics_actors: {}".format(len(collisions), len(_physics_actors))
+    processed_pairs:Dict[Actor, Set[Actor]] = {actor:set([actor]) for actor in collisions.keys()}
+    new_v:Dict[Actor, pygame.math.Vector2] = {actor:pygame.math.Vector2(0, 0) for actor in collisions.keys()}
+    new_ds:Dict[Actor, pygame.math.Vector2] = {actor:pygame.math.Vector2(0, 0) for actor in collisions.keys()}
+    for sprite, colliding_sprites in collisions.items():
+        if len(colliding_sprites) == 1:
+            new_v[sprite] += sprite.physics.velocity
+        for colliding_sprite in colliding_sprites:
+            if colliding_sprite not in processed_pairs[sprite]:
+                r1, r2, cp = separate_rects(sprite.rect, colliding_sprite.rect)
+                r1 = sprite.rect if sprite.physics.fixed else r1
+                r2 = colliding_sprite.rect if colliding_sprite.physics.fixed else r2
+
+                # compute post collision velocities
+                vn1, vn2 = post_collision_velocities(sprite.physics.velocity, colliding_sprite.physics.velocity,
+                                        sprite.physics.mass, colliding_sprite.physics.mass,
+                                        r1, r2, cp)
+                new_v[sprite] += vn1
+                new_v[colliding_sprite] += vn2
+                new_ds[sprite] += pygame.math.Vector2(r1.center) - pygame.math.Vector2(sprite.rect.center)
+                new_ds[colliding_sprite] += pygame.math.Vector2(r2.center) - pygame.math.Vector2(colliding_sprite.rect.center)
+                processed_pairs[sprite].add(colliding_sprite)
+                processed_pairs[colliding_sprite].add(sprite)
+
+        if not sprite.physics.fixed:
+            ds = new_ds[sprite]
+            sprite.rect.move_ip(ds.x, ds.y)
+
+            net_force = sprite.physics.force + _gravity * sprite.physics.mass
+            new_v[sprite] += (net_force / sprite.physics.mass) * dt
+            ds = new_v[sprite] * dt
+
+            sprite.physics.velocity = new_v[sprite]
+            sprite.rect.move_ip(ds.x, ds.y)
 
 def start(screen_title:str=_screen_props.title,
           screen_width=_screen_props.width,
@@ -190,10 +295,9 @@ def start(screen_title:str=_screen_props.title,
           screen_color:PyGameColor=_screen_props.color,
           screen_image_path:Optional[str]=_screen_props.image_path,
           screen_fps=_screen_props.fps,
-          ground_y:Optional[float]=None,
           gravity:Optional[float]=None):
 
-    global  _running, _ground_y, _gravity
+    global  _running, _gravity
 
     # pygame setup
     pygame.init()
@@ -205,7 +309,6 @@ def start(screen_title:str=_screen_props.title,
     set_screen_title(screen_title)
 
     _running = True
-    _ground_y = ground_y
     _gravity = pygame.math.Vector2(0, gravity) if gravity is not None else None
 
 def get_screen_size()->Tuple[int, int]:

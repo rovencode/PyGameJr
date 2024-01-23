@@ -89,3 +89,10 @@ class Physics:
     velocity:pygame.math.Vector2 = pygame.math.Vector2(0, 0)
     force:pygame.math.Vector2 = pygame.math.Vector2(0, 0)
     mass:float = 1.0
+    fixed:bool = False # can this object move (for example walls are fixed)?
+    infinite_wall:bool = False # is this an infinite wall which may not have center (for example the bottom wall)?
+
+    def __post_init__(self):
+        # if fixed object, then mass is infinite
+        if self.fixed:
+            self.mass = 1.0E9 # some high number to represent infinity
