@@ -66,3 +66,17 @@ def get_bounding_rect(polygon_points:List[Tuple[int, int]])->pygame.Rect:
 
     return bounding_rect
 
+def has_transparency(surface:pygame.Surface)->bool:
+    """
+    Returns True if the surface has transparency, False otherwise.
+    """
+    if surface.get_flags() & pygame.SRCALPHA:
+        # Surface is per pixel alpha
+        mask = pygame.mask.from_surface(surface)
+        return mask.count() < mask.get_rect().width * mask.get_rect().height
+    elif surface.get_colorkey() is not None:
+        # Surface is color key alpha
+        return True
+    else:
+        # No transparency
+        return False

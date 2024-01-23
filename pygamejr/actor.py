@@ -1,7 +1,7 @@
-from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from dataclasses import dataclass, fields
 from enum import Enum
 import math
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
 import os
 from collections.abc import Sequence
 
@@ -26,18 +26,18 @@ def collide_mask(left:pygame.sprite.Sprite, right:pygame.sprite.Sprite)->bool:
 
     """
     # Check if both sprites have a mask
-    left_has_mask = hasattr(left, 'mask') and left.mask is not None
-    right_has_mask = hasattr(right, 'mask') and right.mask is not None
+    left_has_mask = hasattr(left, 'mask') and left.mask is not None # type: ignore
+    right_has_mask = hasattr(right, 'mask') and right.mask is not None # type: ignore
 
     # If both have masks, use mask collision detection
     if left_has_mask and right_has_mask:
-        xoffset = right.rect[0] - left.rect[0]
-        yoffset = right.rect[1] - left.rect[1]
-        return left.mask.overlap(right.mask, (xoffset, yoffset))
+        xoffset = right.rect[0] - left.rect[0] # type: ignore
+        yoffset = right.rect[1] - left.rect[1] # type: ignore
+        return left.mask.overlap(right.mask, (xoffset, yoffset)) # type: ignore
 
     # Otherwise, use rectangle collision detection
     else:
-        return left.rect.colliderect(right.rect)
+        return left.rect.colliderect(right.rect) # type: ignore
 
 COSTUME_ZERO = "_hidden_"
 
@@ -51,6 +51,11 @@ class TextInfo:
     y:int=0
     background_color:Optional[PyGameColor] = None
 
+@dataclass
+class CostumeSpec:
+    name:str    # name of the costume
+    index:int = 0 # index of the image for this costume
+
 class Actor(pygame.sprite.Sprite):
     def __init__(self, x:int, y:int, enable_transparency:bool=True,
                  angle=0.0, scale_xy:Tuple[float,float]=(1.0, 1.0)):
@@ -61,40 +66,42 @@ class Actor(pygame.sprite.Sprite):
         self.angle = angle
         self.scale_xy = scale_xy
 
-        self.costumes:Dict[str, pygame.Surface] = {
-            COSTUME_ZERO: pygame.Surface((0, 0))
+        self.costumes:Dict[str, List[pygame.Surface]] = {
+            COSTUME_ZERO: [pygame.Surface((0, 0))]
         }
 
         # initial values
-        self.last_shown_costume = self.current_costume = COSTUME_ZERO
-        self.image = self.costumes[self.current_costume]
+        self.last_shown_costume = CostumeSpec(COSTUME_ZERO, 0)
+        self.current_costume = self.last_shown_costume
+        self.image = self.get_costume_image(self.current_costume)
         self.rect:pygame.Rect = pygame.Rect(x, y, 0, 0)
         self.mask:Optional[pygame.mask.Mask] = None
 
         # texts to write
         self.texts:Dict[str, TextInfo] = {}
 
+    def get_costume_image(self, costume:CostumeSpec)->pygame.Surface:
+        return self.costumes[costume.name][costume.index]
+
     def hide(self):
         self.set_costume(COSTUME_ZERO)
 
     def is_hidden(self)->bool:
-        return self.current_costume == COSTUME_ZERO
+        return self.current_costume.name == COSTUME_ZERO
 
     def show(self):
-        self.set_costume(self.last_shown_costume)
+        self.set_costume(self.last_shown_costume.name, self.last_shown_costume.index)
 
     def update(self, *args:Any, **kwargs:Any)->None:
         """Update the sprite's position and image."""
         # start from current cosume
-        self.image = self.costumes[self.current_costume]
+        self.image = self.get_costume_image(self.current_costume)
 
-        # scale the image if needed
-        if self.scale_xy != (1.0, 1.0):
+        if self.scale_xy != (1.0, 1.0): # scale the image if needed
             self.image = pygame.transform.scale(self.image,
                 (int(self.image.get_width() * self.scale_xy[0]),
                     int(self.image.get_height() * self.scale_xy[1])))
-        elif len(self.texts) > 0:
-            # if we need to write texts then we need to make copy of the image
+        elif len(self.texts) > 0: # if we need to write texts then we need to make copy of the image
             self.image = self.image.copy()
         # else no need to make copy
 
@@ -114,7 +121,7 @@ class Actor(pygame.sprite.Sprite):
         if target_vector.length() > 0:
             target_vector = target_vector.normalize() * speed
             new_pos = pygame.math.Vector2(self.rect.center) + target_vector
-            self.rect.center = new_pos.x, new_pos.y
+            self.rect.center = new_pos.x, new_pos.y # type: ignore
 
     def distance_to(self, xy:Tuple[float,float])->float:
         """Return the distance to another sprite."""
@@ -123,7 +130,8 @@ class Actor(pygame.sprite.Sprite):
 
     def add_costume_image(self, name:str,
                           image_path_or_surface:Union[str, pygame.Surface],
-                          transparent_color:Optional[PyGameColor]=None, change=False) -> pygame.Surface:
+                          transparent_color:Optional[PyGameColor]=None,
+                          change=False) -> pygame.Surface:
         # load image
         if isinstance(image_path_or_surface, str):
             image = common.get_image(image_path_or_surface)
@@ -133,13 +141,15 @@ class Actor(pygame.sprite.Sprite):
 
         # set transparency
         if transparent_color is not None:
-            self.image.set_colorkey(transparent_color)
+            surface.set_colorkey(transparent_color)
         else:
-            if self.enable_transparency and self.has_transparency():
-                self.image = self.image.convert_alpha()
+            if self.enable_transparency and common.has_transparency(surface):
+                surface = surface.convert_alpha()
 
         # add to costumes
-        self.costumes[name] = surface
+        if name not in self.costumes:
+            self.costumes[name] = []
+        self.costumes[name].append(surface)
 
         if change:
             self.set_costume(name)
@@ -179,9 +189,12 @@ class Actor(pygame.sprite.Sprite):
         if name in self.texts:
             del self.texts[name]
 
+    def append_to_costume(self, name:str, surface:pygame.Surface)->None:
+        self.costumes[name].append(surface)
+
     def save_current_costume(self, name:str)->None:
         """Save current rendering as cosume"""
-        self.costumes[name] = self.image.copy()
+        self.append_to_costume(name, self.image.copy())
 
     def add_costume_polygon_any(self, name:str,
                         points:List[Tuple[int, int]],
@@ -208,48 +221,36 @@ class Actor(pygame.sprite.Sprite):
         points = common.polygon_points(sides, 0, 0, width, height)
         return self.add_costume_polygon_any(name, points, color, border, change=change)
 
-    def set_costume(self, name:str)->None:
-        if self.current_costume == name:
+    def set_costume(self, name:str, index=0)->None:
+        if self.current_costume == CostumeSpec(name, index):
             return
 
         # only record non-hidden costumes
-        if self.current_costume != COSTUME_ZERO:
+        if self.current_costume.name != COSTUME_ZERO:
             self.last_shown_costume = self.current_costume
 
-        self.current_costume = name
-        self.image = self.costumes[name]
+        self.current_costume = CostumeSpec(name, index)
+        self.image = self.get_costume_image(self.current_costume)
         self.rect = self.image.get_rect(topleft=self.rect.topleft)
 
         # create masks
         if self.image.get_colorkey() is not None:
             self.mask = pygame.mask.from_surface(self.image)
-        elif self.enable_transparency and self.has_transparency():
+        elif self.enable_transparency and common.has_transparency(self.image):
                 self.mask = pygame.mask.from_surface(self.image)
         else:
             self.mask:Optional[pygame.mask.Mask] = None
 
-    def remove_costume(self, name:str)->None:
+    def remove_costume(self, name:str, index:Optional[int])->None:
         if name in self.costumes:
-            del self.costumes[name]
+            if index is None:
+                del self.costumes[name]
+            else:
+                del self.costumes[name][index]
 
     def move(self, dx:int, dy:int)->pygame.Rect:
         self.rect.move_ip(dx, dy)
         return self.rect
-
-    def has_transparency(self):
-        """
-        Returns True if the surface has transparency, False otherwise.
-        """
-        if self.image.get_flags() & pygame.SRCALPHA:
-            # Surface is per pixel alpha
-            mask = pygame.mask.from_surface(self.image)
-            return mask.count() < mask.get_rect().width * mask.get_rect().height
-        elif self.image.get_colorkey() is not None:
-            # Surface is color key alpha
-            return True
-        else:
-            # No transparency
-            return False
 
     def turn(self, angle:float)->None:
         """ Rotate a sprite and keep its center. """
@@ -286,8 +287,8 @@ class Actor(pygame.sprite.Sprite):
                 return [other]
             else:
                 return []
-        elif isinstance(other, ActorGroup):
-            return pygame.sprite.spritecollide(self, other, False, collide_mask)
+        elif isinstance(other, ActorGroup) or isinstance(other, list):
+            return pygame.sprite.spritecollide(self, other, False, collide_mask) # type: ignore
         elif isinstance(other, tuple):
             if self.rect.collidepoint(other):
                 return [self]

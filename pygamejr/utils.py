@@ -1,3 +1,4 @@
+from typing import Callable, Mapping, MutableMapping, Optional, Tuple, Dict, List, Sequence, Any, Type, TypeVar, cast
 import csv
 from datetime import datetime
 import os
@@ -5,7 +6,6 @@ import pathlib
 import platform
 import subprocess
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # needed to avoid Jupyter kernal crash due to matplotlib
-from typing import Callable, Mapping, MutableMapping, Optional, Tuple, Dict, List, Sequence, Any, Type
 from itertools import groupby, chain
 from collections import OrderedDict, defaultdict
 import os
@@ -19,7 +19,7 @@ from itertools import zip_longest
 import random
 import hashlib
 import json
-from dataclasses import dataclass
+import dataclasses
 import importlib
 import multiprocessing
 from urllib.parse import unquote, urlparse
@@ -518,3 +518,5 @@ def full_path_abs(path:str, create=False)->str:
         os.makedirs(p, exist_ok=True)
 
     return p
+
+
