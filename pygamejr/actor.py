@@ -52,12 +52,14 @@ class TextInfo:
     background_color:Optional[PyGameColor] = None
 
 class Actor(pygame.sprite.Sprite):
-    def __init__(self, x:int, y:int, enable_transparency:bool=True, angle=0.0):
+    def __init__(self, x:int, y:int, enable_transparency:bool=True,
+                 angle=0.0, scale_xy:Tuple[float,float]=(1.0, 1.0)):
 
         super().__init__()
 
         self.enable_transparency = enable_transparency
         self.angle = angle
+        self.scale_xy = scale_xy
 
         self.costumes:Dict[str, pygame.Surface] = {
             COSTUME_ZERO: pygame.Surface((0, 0))
@@ -86,13 +88,20 @@ class Actor(pygame.sprite.Sprite):
         # start from current cosume
         self.image = self.costumes[self.current_costume]
 
-        # if we need to write texts then we need to make copy of the image
-        if len(self.texts) > 0:
+        # scale the image if needed
+        if self.scale_xy != (1.0, 1.0):
+            self.image = pygame.transform.scale(self.image,
+                (int(self.image.get_width() * self.scale_xy[0]),
+                    int(self.image.get_height() * self.scale_xy[1])))
+        elif len(self.texts) > 0:
+            # if we need to write texts then we need to make copy of the image
             self.image = self.image.copy()
-            for name, text_info in self.texts.items():
-                font = pygame.font.Font(text_info.font_name, text_info.font_size)
-                surface = font.render(text_info.text, True, text_info.color, text_info.background_color)
-                self.image.blit(surface, (text_info.x, text_info.y))
+        # else no need to make copy
+
+        for name, text_info in self.texts.items():
+            font = pygame.font.Font(text_info.font_name, text_info.font_size)
+            surface = font.render(text_info.text, True, text_info.color, text_info.background_color)
+            self.image.blit(surface, (text_info.x, text_info.y))
 
         # rotate the image if needed
         if self.angle != 0.0:
@@ -106,6 +115,11 @@ class Actor(pygame.sprite.Sprite):
             target_vector = target_vector.normalize() * speed
             new_pos = pygame.math.Vector2(self.rect.center) + target_vector
             self.rect.center = new_pos.x, new_pos.y
+
+    def distance_to(self, xy:Tuple[float,float])->float:
+        """Return the distance to another sprite."""
+        target_vector = pygame.math.Vector2(xy) - pygame.math.Vector2(self.rect.center)
+        return target_vector.length()
 
     def add_costume_image(self, name:str,
                           image_path_or_surface:Union[str, pygame.Surface],
@@ -162,7 +176,8 @@ class Actor(pygame.sprite.Sprite):
         self.texts[name] = TextInfo(text, font_name, font_size, color, x, y, background_color)
 
     def remove_text(self, name:str)->None:
-        del self.texts[name]
+        if name in self.texts:
+            del self.texts[name]
 
     def save_current_costume(self, name:str)->None:
         """Save current rendering as cosume"""
@@ -214,7 +229,8 @@ class Actor(pygame.sprite.Sprite):
             self.mask:Optional[pygame.mask.Mask] = None
 
     def remove_costume(self, name:str)->None:
-        del self.costumes[name]
+        if name in self.costumes:
+            del self.costumes[name]
 
     def move(self, dx:int, dy:int)->pygame.Rect:
         self.rect.move_ip(dx, dy)
@@ -264,15 +280,19 @@ class Actor(pygame.sprite.Sprite):
     def turn_to(self, xy:Tuple[float,float], speed:float=0.1)->None:
         self.angle = self.angle_to(xy, speed)
 
-    def touches(self, other:Union['Actor', ActorGroup])->Sequence['Actor']:
+    def touches(self, other:Union['Actor', ActorGroup, Tuple[float, float]])->Sequence['Actor']:
         if isinstance(other, Actor):
-            if pygame.sprite.collide_rect(self, other):
+            if pygame.sprite.collide_mask(self, other):
                 return [other]
             else:
                 return []
-        else:
-            return pygame.sprite.spritecollide(self, other, False,
-                        collide_mask)
+        elif isinstance(other, ActorGroup):
+            return pygame.sprite.spritecollide(self, other, False, collide_mask)
+        elif isinstance(other, tuple):
+            if self.rect.collidepoint(other):
+                return [self]
+            else:
+                return []
 
     def on_keypress(self, keys:Set[str]):
         pass
