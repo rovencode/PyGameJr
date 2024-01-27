@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 from typing import Optional, List, Tuple, Dict, Union, Sequence
+from dataclasses import dataclass, field
 import math
 import os
 import pygame
@@ -86,8 +86,8 @@ def has_transparency(surface:pygame.Surface)->bool:
 @dataclass
 class Physics:
     enabled:bool = False
-    velocity:pygame.math.Vector2 = pygame.math.Vector2(0, 0)
-    force:pygame.math.Vector2 = pygame.math.Vector2(0, 0)
+    velocity:pygame.math.Vector2 = field(default_factory=pygame.math.Vector2)
+    force:pygame.math.Vector2 = field(default_factory=pygame.math.Vector2)
     mass:float = 1.0
     fixed:bool = False # can this object move (for example walls are fixed)?
     infinite_wall:bool = False # is this an infinite wall which may not have center (for example the bottom wall)?

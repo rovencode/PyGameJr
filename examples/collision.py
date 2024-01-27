@@ -13,13 +13,13 @@ triangle.add_costume_polygon("collision", sides=3, width=60, height=60, color="r
 # Move triangle using keyboard
 def triangle_keyboard(triangle, keys):
     if "left" in keys:
-        triangle.move(-2, 0)
+        triangle.move_by(-2, 0)
     elif "right" in keys:
-        triangle.move(2, 0)
+        triangle.move_by(2, 0)
     elif "up" in keys:
-        triangle.move(0, -2)
+        triangle.move_by(0, -2)
     elif "down" in keys:
-        triangle.move(0, 2)
+        triangle.move_by(0, 2)
 
     if triangle.touches([rect, ellipse]):
         triangle.set_costume("collision")
