@@ -5,6 +5,8 @@ from typing import List, Tuple, Optional, Set, Dict, Any, Union, Callable, Itera
 from enum import Enum
 
 import pygame
+import pymunk
+from pymunk import pygame_util
 
 from pygamejr import utils
 from pygamejr import common
@@ -16,6 +18,10 @@ _running = False # is game currently running?
 clock = pygame.time.Clock() # game clock
 screen:Optional[pygame.Surface] = None # game screen
 
+# pygame setup
+pygame.init()
+space = pymunk.Space() # physics space
+
 _actors = ActorGroup() # list of all actors
 _screen_walls = ActorGroup() # list of all wall
 _physics_actors = ActorGroup() # list of all actors with physics enabled
@@ -23,7 +29,6 @@ down_keys = set()   # keys currently down
 down_mousbuttons = set()  # mouse buttons currently down
 
 # physics
-_gravity:Optional[pygame.math.Vector2]=None
 _last_physics_time = 0
 
 @dataclass
@@ -300,10 +305,7 @@ def start(screen_title:str=_screen_props.title,
           screen_fps=_screen_props.fps,
           gravity:Optional[float]=None):
 
-    global  _running, _gravity
-
-    # pygame setup
-    pygame.init()
+    global  _running, screen
 
     set_screen_size(screen_width, screen_height)
     set_screen_color(screen_color)
@@ -312,7 +314,10 @@ def start(screen_title:str=_screen_props.title,
     set_screen_title(screen_title)
 
     _running = True
-    _gravity = pygame.math.Vector2(0, gravity) if gravity is not None else None
+    space.gravity = (0.0, -gravity) if gravity is not None else (0.0, 0.0)
+
+    assert screen is not None, "screen is None"
+    draw_options = pygame_util.DrawOptions(screen)
 
 def get_screen_size()->Tuple[int, int]:
     return _screen_props.width, _screen_props.height
@@ -359,8 +364,6 @@ def update():
 
     if not _running:
         return
-
-    apply_physics()
 
     # poll for events
     # pygame.QUIT event means the user clicked X to close your window
