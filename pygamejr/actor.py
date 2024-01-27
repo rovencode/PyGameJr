@@ -159,6 +159,18 @@ class Actor(pygame.sprite.Sprite):
         """Cycle through images for current costume"""
         self.animation = AnimationSpec(frame_time_s, timeit.default_timer(), loop, True)
 
+    def x(self)->int:
+        return self.rect.x
+
+    def y(self)->int:
+        return self.rect.y
+
+    def width(self)->int:
+        return self.rect.width
+
+    def height(self)->int:
+        return self.rect.height
+
     def stop_animation(self)->None:
         self.animation.started = False
 
@@ -298,8 +310,12 @@ class Actor(pygame.sprite.Sprite):
             else:
                 del self.costumes[name][index]
 
-    def move(self, dx:int, dy:int)->pygame.Rect:
+    def move_by(self, dx:int, dy:int)->pygame.Rect:
         self.rect.move_ip(dx, dy)
+        return self.rect
+
+    def move_to(self, x:int, y:int)->pygame.Rect:
+        self.rect.move_ip(x-self.rect.x, y-self.rect.y)
         return self.rect
 
     def turn(self, angle:float)->None:

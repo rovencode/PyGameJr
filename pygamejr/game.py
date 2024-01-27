@@ -185,16 +185,16 @@ def create_screen_walls(left:bool=False, right:bool=False,
     global _screen_walls
     physics = common.Physics(enabled=enable_physcs, fixed=True, infinite_wall=True)
     if left:
-        actor = create_rect(width=1, height=get_screen_height(), x=0, y=0, color=color, border=border, enable_transparency=enable_transparency, physics=physics)
+        actor = create_rect(width=1, height=screen_height(), x=0, y=0, color=color, border=border, enable_transparency=enable_transparency, physics=physics)
         _screen_walls.add(actor)
     if right:
-        actor = create_rect(width=1, height=get_screen_height(), x=get_screen_width()-border, y=0, color=color, border=border, enable_transparency=enable_transparency, physics=physics)
+        actor = create_rect(width=1, height=screen_height(), x=screen_width()-border, y=0, color=color, border=border, enable_transparency=enable_transparency, physics=physics)
         _screen_walls.add(actor)
     if top:
-        actor = create_rect(width=get_screen_width(), height=1, x=0, y=0, color=color, border=border, enable_transparency=enable_transparency, physics=physics)
+        actor = create_rect(width=screen_width(), height=1, x=0, y=0, color=color, border=border, enable_transparency=enable_transparency, physics=physics)
         _screen_walls.add(actor)
     if bottom:
-        actor = create_rect(width=get_screen_width(), height=1, x=0, y=get_screen_height()-border, color=color, border=border, enable_transparency=enable_transparency, physics=physics)
+        actor = create_rect(width=screen_width(), height=1, x=0, y=screen_height()-border, color=color, border=border, enable_transparency=enable_transparency, physics=physics)
         _screen_walls.add(actor)
 
 def find_overlap_center(rect1, rect2):
@@ -314,11 +314,11 @@ def start(screen_title:str=_screen_props.title,
     _running = True
     _gravity = pygame.math.Vector2(0, gravity) if gravity is not None else None
 
-def get_screen_size()->Tuple[int, int]:
+def screen_size()->Tuple[int, int]:
     return _screen_props.width, _screen_props.height
-def get_screen_width()->int:
+def screen_width()->int:
     return _screen_props.width
-def get_screen_height()->int:
+def screen_height()->int:
     return _screen_props.height
 def set_screen_size(width:int, height:int):
     global screen
@@ -332,7 +332,7 @@ def set_screen_color(color:PyGameColor):
 
 def _scale_screen_image():
     if _screen_props.image:
-        _screen_props.image_scaled = pygame.transform.scale(_screen_props.image, get_screen_size())
+        _screen_props.image_scaled = pygame.transform.scale(_screen_props.image, screen_size())
     else:
         _screen_props.image_scaled = None
 
@@ -421,11 +421,11 @@ def update():
 def too_left(actor:Actor)->bool:
     return actor.rect.left < 0
 def too_right(actor:Actor)->bool:
-    return actor.rect.right > get_screen_size()[0]
+    return actor.rect.right > screen_size()[0]
 def too_top(actor:Actor)->bool:
     return actor.rect.top < 0
 def too_bottom(actor:Actor)->bool:
-    return actor.rect.bottom > get_screen_size()[1]
+    return actor.rect.bottom > screen_size()[1]
 
 def mouse_xy()->Tuple[int, int]:
     return pygame.mouse.get_pos()
