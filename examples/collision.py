@@ -5,10 +5,10 @@ game.start()
 # Create some shapes
 rect = game.create_rect(60, 60, 100, 100, "blue")
 ellipse = game.create_ellipse(80, 80, 200, 200, "yellow")
-triangle = game.create_polygon(3, 60, 60, 300, 300, color="green")
+triangle = game.create_polygon(sides=3, width=60, height=60, x=300, y=300, color="green")
 
 # add new costume for triangle
-triangle.add_costume_polygon("collision", 3, 60, 60, color="red")
+triangle.add_costume_polygon("collision", sides=3, width=60, height=60, color="red")
 
 # Move triangle using keyboard
 def triangle_keyboard(triangle, keys):
