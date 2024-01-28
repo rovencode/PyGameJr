@@ -20,6 +20,7 @@ screen:Optional[pygame.Surface] = None # game screen
 _actors = ActorGroup() # list of all actors
 _screen_walls = ActorGroup() # list of all wall
 _physics_actors = ActorGroup() # list of all actors with physics enabled
+_wait_for:float = 0 # wait for this many seconds before allowing updates
 
 down_keys = set()   # keys currently down
 down_mousbuttons = set()  # mouse buttons currently down
@@ -357,10 +358,11 @@ def on_frame():
     pass
 
 def update():
-    global _running
+    global _running, _wait_for
 
-    if not _running:
+    if not _running or _wait_for > timeit.default_timer():
         return
+    _wait_for = 0
 
     apply_physics()
 
@@ -442,8 +444,10 @@ def end():
         _running = False
         exit(0)
 
-def wait(seconds:float):
+def wait(seconds:float, reset=False):
     """
     Pause the game for the given number of seconds.
     """
-    time.sleep(seconds)
+    if _wait_for == 0 or reset:
+        global _wait_for
+        _wait_for = timeit.default_timer() + seconds
