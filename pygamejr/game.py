@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import timeit
 from typing import List, Tuple, Optional, Set, Dict, Any, Union, Callable, Iterable
 from enum import Enum
+import time
 
 import pygame
 
@@ -19,6 +20,7 @@ screen:Optional[pygame.Surface] = None # game screen
 _actors = ActorGroup() # list of all actors
 _screen_walls = ActorGroup() # list of all wall
 _physics_actors = ActorGroup() # list of all actors with physics enabled
+
 down_keys = set()   # keys currently down
 down_mousbuttons = set()  # mouse buttons currently down
 
@@ -439,3 +441,9 @@ def end():
         pygame.mixer.quit()
         _running = False
         exit(0)
+
+def wait(seconds:float):
+    """
+    Pause the game for the given number of seconds.
+    """
+    time.sleep(seconds)

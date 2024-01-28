@@ -299,7 +299,7 @@ class Actor(pygame.sprite.Sprite):
         if self.image.get_colorkey() is not None:
             self.mask = pygame.mask.from_surface(self.image)
         elif self.enable_transparency and common.has_transparency(self.image):
-                self.mask = pygame.mask.from_surface(self.image)
+                self.mask = pygame.mask.from_surface(self.image, threshold=1)
         else:
             self.mask:Optional[pygame.mask.Mask] = None
 
