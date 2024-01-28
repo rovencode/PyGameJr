@@ -17,6 +17,7 @@ _running = False # is game currently running?
 
 clock = pygame.time.Clock() # game clock
 screen:Optional[pygame.Surface] = None # game screen
+draw_options:Optional[pygame_util.DrawOptions] = None # pymunk draw options
 
 # pygame setup
 pygame.init()
@@ -305,7 +306,7 @@ def start(screen_title:str=_screen_props.title,
           screen_fps=_screen_props.fps,
           gravity:Optional[float]=None):
 
-    global  _running, screen
+    global  _running, screen, draw_options
 
     set_screen_size(screen_width, screen_height)
     set_screen_color(screen_color)
@@ -364,6 +365,10 @@ def update():
 
     if not _running:
         return
+
+    # first call physics so manual overrides can happen later
+    # use fixed fps for dt instead of actual dt
+    space.step(1.0 / _screen_props.fps)
 
     # poll for events
     # pygame.QUIT event means the user clicked X to close your window

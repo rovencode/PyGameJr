@@ -2,6 +2,8 @@ from typing import Optional, List, Tuple, Dict, Union, Sequence
 from dataclasses import dataclass, field
 import math
 import os
+import timeit
+
 import pygame
 from pygamejr import utils
 
@@ -82,6 +84,31 @@ def has_transparency(surface:pygame.Surface)->bool:
         # No transparency
         return False
 
+def collide_mask_ex(left:pygame.sprite.Sprite, right:pygame.sprite.Sprite)->bool:
+    """collision detection between two sprites, using masks or rectangles.
+
+    pygame.sprite.collide_mask(SpriteLeft, SpriteRight): bool
+
+    Tests for collision between two sprites. If both sprites have a "mask" attribute,
+    it tests if their bitmasks overlap. If either sprite does not have a mask,
+    it uses rectangle collision detection instead. Sprites must have a "rect" and
+    an optional "mask" attribute.
+
+    """
+    # Check if both sprites have a mask
+    left_has_mask = hasattr(left, 'mask') and left.mask is not None # type: ignore
+    right_has_mask = hasattr(right, 'mask') and right.mask is not None # type: ignore
+
+    # If both have masks, use mask collision detection
+    if left_has_mask and right_has_mask:
+        xoffset = right.rect[0] - left.rect[0] # type: ignore
+        yoffset = right.rect[1] - left.rect[1] # type: ignore
+        return left.mask.overlap(right.mask, (xoffset, yoffset)) # type: ignore
+
+    # Otherwise, use rectangle collision detection
+    else:
+        return left.rect.colliderect(right.rect) # type: ignore
+
 
 @dataclass
 class Physics:
@@ -96,3 +123,25 @@ class Physics:
         # if fixed object, then mass is infinite
         if self.fixed:
             self.mass = 1.0E9 # some high number to represent infinity
+
+@dataclass
+class TextInfo:
+    text:str
+    font_name:Optional[str]=None
+    font_size:int=20
+    color:PyGameColor="black"
+    x:int=0
+    y:int=0
+    background_color:Optional[PyGameColor] = None
+
+@dataclass
+class CostumeSpec:
+    name:str    # name of the costume
+    index:int = 0 # index of the image for this costume
+
+@dataclass
+class AnimationSpec:
+    frame_time_s:float=0.1
+    last_frame_time:float=timeit.default_timer()
+    loop:bool=True
+    started:bool=False
