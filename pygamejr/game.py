@@ -19,6 +19,9 @@ clock = pygame.time.Clock() # game clock
 screen:Optional[pygame.Surface] = None # game screen
 draw_options:Optional[pygame_util.DrawOptions] = None # pymunk draw options
 
+# For y flip conversion between pymunk and pygame coordinates
+pymunk.pygame_util.positive_y_is_up = True
+
 # pygame setup
 pygame.init()
 space = pymunk.Space() # physics space
@@ -83,7 +86,7 @@ def create_image(image_path:Union[str, Iterable[str]],
                 shape_crop:bool=True,
                 draw_options:Optional[DrawOptions]=None,
                 visible:bool=True,
-                density=0.0, elasticity=0.0, friction=0.0, unmoveable=False) -> Actor:
+                density=0.0, elasticity=1.0, friction=0.0, unmoveable=False) -> Actor:
 
     if isinstance(image_path, str):
         image_path = [image_path]
@@ -135,7 +138,7 @@ def create_rect(width:int=20, height:int=20,
                 shape_crop:bool=True,
                 draw_options:Optional[DrawOptions]=None,
                 visible:bool=True,
-                density=0.0, elasticity=0.0, friction=0.0, unmoveable=False) -> Actor:
+                density=0.0, elasticity=1.0, friction=0.0, unmoveable=False) -> Actor:
 
     body_type = pymunk.Body.KINEMATIC if density == 0.0 else pymunk.Body.DYNAMIC
     if unmoveable:
@@ -181,7 +184,7 @@ def create_ellipse(width:int=20, height:int=20,
                 shape_crop:bool=True,
                 draw_options:Optional[DrawOptions]=None,
                 visible:bool=True,
-                density=0.0, elasticity=0.0, friction=0.0, unmoveable=False) -> Actor:
+                density=0.0, elasticity=1.0, friction=0.0, unmoveable=False) -> Actor:
 
     body_type = pymunk.Body.KINEMATIC if density == 0.0 else pymunk.Body.DYNAMIC
     if unmoveable:
@@ -227,7 +230,7 @@ def create_polygon_any(points:Sequence[Coordinates],
                 shape_crop:bool=True,
                 draw_options:Optional[DrawOptions]=None,
                 visible:bool=True,
-                density=0.0, elasticity=0.0, friction=0.0, unmoveable=False) -> Actor:
+                density=0.0, elasticity=1.0, friction=0.0, unmoveable=False) -> Actor:
 
     body_type = pymunk.Body.KINEMATIC if density == 0.0 else pymunk.Body.DYNAMIC
     if unmoveable:
@@ -271,7 +274,7 @@ def create_polygon(sides:int, width:int=20, height:int=20,
                 shape_crop:bool=True,
                 draw_options:Optional[DrawOptions]=None,
                 visible:bool=True,
-                density=0.0, elasticity=0.0, friction=0.0, unmoveable=False) -> Actor:
+                density=0.0, elasticity=1.0, friction=0.0, unmoveable=False) -> Actor:
 
     points = common.polygon_points(sides, 0, 0, width, height)
 
@@ -293,31 +296,35 @@ def create_screen_walls(left:bool=False, right:bool=False,
                         color:PyGameColor=(0, 0, 0, 0),
                         border=0,
                         transparency_enabled:bool=False,
-                        enable_physcs:bool=False):
+                        density=1.0, elasticity=1.0, friction=0.0, unmoveable=True):
     global _screen_walls
     if left:
         actor = create_rect(width=1, height=screen_height(),
                             bottom_left=(0, 0),
                             color=color, border=border,
-                            transparency_enabled=transparency_enabled)
+                            transparency_enabled=transparency_enabled,
+                            density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable)
         _screen_walls.append(actor)
     if right:
         actor = create_rect(width=1, height=screen_height(),
                             bottom_left=(screen_width()-border, 0),
                             color=color, border=border,
-                            transparency_enabled=transparency_enabled)
+                            transparency_enabled=transparency_enabled,
+                            density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable)
         _screen_walls.append(actor)
     if top:
         actor = create_rect(width=screen_width(), height=1,
                             bottom_left=(0, screen_height()-border),
                             color=color, border=border,
-                            transparency_enabled=transparency_enabled)
+                            transparency_enabled=transparency_enabled,
+                            density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable)
         _screen_walls.append(actor)
     if bottom:
         actor = create_rect(width=screen_width(), height=1,
                             bottom_left=(0, 0),
                             color=color, border=border,
-                            transparency_enabled=transparency_enabled)
+                            transparency_enabled=transparency_enabled,
+                            density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable)
         _screen_walls.append(actor)
 
 
@@ -338,7 +345,7 @@ def start(screen_title:str=_screen_props.title,
     set_screen_title(screen_title)
 
     _running = True
-    space.gravity = (0.0, -gravity) if gravity is not None else (0.0, 0.0)
+    space.gravity = (0.0, gravity) if gravity is not None else (0.0, 0.0)
 
     assert screen is not None, "screen is None"
     draw_options = pygame_util.DrawOptions(screen)
