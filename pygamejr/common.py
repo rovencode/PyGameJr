@@ -1,15 +1,19 @@
 from typing import Optional, List, Tuple, Dict, Union, Sequence
+from collections import namedtuple
 from dataclasses import dataclass, field
 import math
 import os
 import timeit
 
+import numpy as np
+
 import pygame
+import pymunk
+from pymunk import pygame_util, Vec2d
 from pygamejr import utils
 
 RGBAOutput = Tuple[int, int, int, int]
 PyGameColor = Union[pygame.Color, int, str, Tuple[int, int, int], RGBAOutput, Sequence[int]]
-
 _images:Dict[str, pygame.Surface] = {} # cache of all loaded images
 
 def get_image(image_path:Optional[str], cache=True)->Optional[pygame.Surface]:
@@ -145,3 +149,84 @@ class AnimationSpec:
     last_frame_time:float=timeit.default_timer()
     loop:bool=True
     started:bool=False
+
+@dataclass
+class ImageSpec:
+    image:pygame.Surface
+    image_scale_xy:Tuple[float, float]=(1., 1.)
+    image_transparency_enabled:bool=False
+
+def rectangle_from_line(p1:Vec2d, p2:Vec2d)->Tuple[Vec2d, Vec2d, Vec2d, Vec2d]:
+    """Create a rectangle around a line of width 1."""
+    # Calculate the vector representing the line
+    line_vec = p2 - p1
+
+    # Calculate a perpendicular vector (for width)
+    perp_vec = Vec2d(-line_vec[1], line_vec[0])
+
+    # Normalize and scale the perpendicular vector to half the rectangle's width
+    perp_vec = perp_vec / perp_vec.length * 0.5
+
+    # Calculate the four corners of the rectangle
+    corner1 = p1 + perp_vec
+    corner4 = p2 + perp_vec
+    corner3 = p2 - perp_vec
+    corner2 = p1 - perp_vec
+
+    return corner1, corner2, corner3, corner4
+
+def surface_from_shape(shape:pymunk.Shape,
+                   color:PyGameColor, border:int,
+                   angle_line_width:int, angle_line_color:PyGameColor,
+                   center_radius:float, center_color:PyGameColor)->Tuple[pygame.Surface, Vec2d]:
+    """Creates the surface to fit the given shape and draws on the shape on it.
+       Also returns the local coordinates of the center in pygame coordinates.
+    """
+
+    surface:Optional[pygame.Surface] = None
+    center:Optional[Vec2d] = None
+    if isinstance(shape, pymunk.Circle):
+        width, height = shape.radius*2, shape.radius*2
+        center = Vec2d(shape.radius, shape.radius)
+        surface = pygame.Surface((width, height), pygame.SRCALPHA)
+        surface.fill((0, 0, 0, 0)) # transparent initial surface
+        pygame.draw.circle(surface, color, center, shape.radius, border)
+
+        if angle_line_width:
+            angle = math.degrees(shape.body.angle) + 180 # flipped y
+            end_pos = (center[0] + int(shape.radius * math.cos(angle)),
+                       center[1] - int(shape.radius * math.sin(angle)))
+            pygame.draw.line(surface, angle_line_color, center, end_pos, angle_line_width)
+
+    elif isinstance(shape, pymunk.Poly) or isinstance(shape, pymunk.Segment):
+        vertices = shape.get_vertices() if isinstance(shape, pymunk.Poly) \
+                    else rectangle_from_line(shape.a, shape.b)
+        # rotate vertices
+        vertices = [v.rotated(shape.body.angle) for v in vertices]
+        height = max([v.y for v in vertices]) - min([v.y for v in vertices])
+        # flip y to get pygame coordinates
+        vertices = [Vec2d(v.x, height-v.y) for v in vertices]
+
+        # ensure, min x and y is 0 by translating all vertices by min x and y
+        min_x = min([v.x for v in vertices])
+        min_y = min([v.y for v in vertices])
+        vertices = [Vec2d(v.x-min_x, v.y-min_y) for v in vertices]
+
+        # create surface
+        width = max([v.x for v in vertices])
+        surface = pygame.Surface((width, height), pygame.SRCALPHA)
+        surface.fill((0, 0, 0, 0)) # transparent initial surface
+        pygame.draw.polygon(surface, color, vertices, border)
+
+        # body coordinates translates in the same way as the vertices
+        center = Vec2d(shape.body.position.x-min_x, (height-shape.body.position.y)-min_y)
+
+        if angle_line_width:
+            unit_vector = Vec2d(1, 0).rotated(shape.body.angle + math.pi) # add 180 degree to flip y
+            angle_vec = center + (unit_vector * (width + height) / 2.0)
+            pygame.draw.line(surface, color, center, angle_vec, border)
+    else:
+        raise ValueError(f"Unknown shape type: {type(shape)}")
+
+    if center_radius:
+        pygame.draw.circle(surface, center_color, center, center_radius, 0)
