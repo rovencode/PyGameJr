@@ -8,7 +8,7 @@
             "name": "ball_keyboard",
             "type": "python",
             "request": "launch",
-            "program": "examples/ball_keyboard/ball_keyboard.py",
+            "program": "examples/ball_keyboard.py",
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -16,7 +16,7 @@
             "name": "ball_bouncing",
             "type": "python",
             "request": "launch",
-            "program": "examples/ball_bouncing/ball_bouncing.py",
+            "program": "examples/ball_bouncing.py",
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -24,7 +24,7 @@
             "name": "shapes",
             "type": "python",
             "request": "launch",
-            "program": "examples/shapes/shapes.py",
+            "program": "examples/shapes.py",
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -32,7 +32,7 @@
             "name": "collision",
             "type": "python",
             "request": "launch",
-            "program": "examples/collision/collision.py",
+            "program": "examples/collision.py",
             "console": "integratedTerminal",
             "justMyCode": true
         },
