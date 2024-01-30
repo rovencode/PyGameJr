@@ -6,12 +6,12 @@ from enum import Enum
 
 import pygame
 import pymunk
-from pymunk import pygame_util
+from pymunk import pygame_util, Vec2d
 
 from pygamejr import utils
 from pygamejr import common
 from pygamejr.actor import Actor
-from pygamejr.common import PyGameColor, DrawOptions, Coordinates
+from pygamejr.common import PyGameColor, DrawOptions, Coordinates, Vector2
 
 _running = False # is game currently running?
 
@@ -20,7 +20,7 @@ screen:Optional[pygame.Surface] = None # game screen
 draw_options:Optional[pygame_util.DrawOptions] = None # pymunk draw options
 
 # For y flip conversion between pymunk and pygame coordinates
-pymunk.pygame_util.positive_y_is_up = True
+pygame_util.positive_y_is_up = True
 
 # pygame setup
 pygame.init()
@@ -81,12 +81,13 @@ def create_image(image_path:Union[str, Iterable[str]],
                 bottom_left:Coordinates=(0, 0),
                 angle=0.0, border=0,
                 transparent_color:Optional[PyGameColor]=None,
-                scale_xy:Tuple[float,float]=(1.0, 1.0),
+                scale_xy:Optional[Tuple[float,float]]=(1., 1.),
                 transparency_enabled:bool=True,
                 shape_crop:bool=True,
                 draw_options:Optional[DrawOptions]=None,
                 visible:bool=True,
-                density=0.0, elasticity=1.0, friction=0.0, unmoveable=False) -> Actor:
+                density=0.0, elasticity=1.0, friction=0.0, unmoveable=False,
+                velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
 
     if isinstance(image_path, str):
         image_path = [image_path]
@@ -103,6 +104,8 @@ def create_image(image_path:Union[str, Iterable[str]],
     body = pymunk.Body(body_type=body_type)
     body.position = bottom_left[0] + width/2., bottom_left[1] + height/2.
     body.angle = angle
+    body.velocity = Vec2d(*velocity)
+    body.angular_velocity = math.radians(angular_velocity)
 
     shape = pymunk.Poly.create_box(body,
                                    size=(width, height),
@@ -133,12 +136,13 @@ def create_rect(width:int=20, height:int=20,
                 bottom_left:Coordinates=(0, 0),
                 angle=0.0, border=0,
                 transparent_color:Optional[PyGameColor]=None,
-                scale_xy:Tuple[float,float]=(1.0, 1.0),
+                scale_xy:Optional[Tuple[float,float]]=(1., 1.),
                 transparency_enabled:bool=True,
                 shape_crop:bool=True,
                 draw_options:Optional[DrawOptions]=None,
                 visible:bool=True,
-                density=0.0, elasticity=1.0, friction=0.0, unmoveable=False) -> Actor:
+                density=0.0, elasticity=1.0, friction=0.0, unmoveable=False,
+                velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
 
     body_type = pymunk.Body.KINEMATIC if density == 0.0 else pymunk.Body.DYNAMIC
     if unmoveable:
@@ -147,6 +151,8 @@ def create_rect(width:int=20, height:int=20,
     body = pymunk.Body(body_type=body_type)
     body.position = bottom_left[0] + width/2., bottom_left[1] + height/2.
     body.angle = angle
+    body.velocity = Vec2d(*velocity)
+    body.angular_velocity = math.radians(angular_velocity)
 
     shape = pymunk.Poly.create_box(body,
                                    size=(width, height),
@@ -172,6 +178,53 @@ def create_rect(width:int=20, height:int=20,
 
     return actor
 
+def create_circle(radius:float=20,
+                color:PyGameColor="red",
+                image_path:Union[str, Iterable[str]]=[],
+                center:Coordinates=(0, 0),
+                angle=0.0, border=0,
+                transparent_color:Optional[PyGameColor]=None,
+                scale_xy:Optional[Tuple[float,float]]=(1., 1.),
+                transparency_enabled:bool=True,
+                shape_crop:bool=True,
+                draw_options:Optional[DrawOptions]=None,
+                visible:bool=True,
+                density=0.0, elasticity=1.0, friction=0.0, unmoveable=False,
+                velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
+
+    body_type = pymunk.Body.KINEMATIC if density == 0.0 else pymunk.Body.DYNAMIC
+    if unmoveable:
+        body_type = pymunk.Body.STATIC
+
+    bottom_left = center[0]-radius, center[1]-radius
+
+    body = pymunk.Body(body_type=body_type)
+    body.position = bottom_left[0]+radius, bottom_left[1]+radius
+    body.angle = angle
+    body.velocity = Vec2d(*velocity)
+    body.angular_velocity = math.radians(angular_velocity)
+
+    shape = pymunk.Circle(body, radius)
+    shape.density = density
+    shape.elasticity = elasticity
+    shape.friction = friction
+
+    space.add(body, shape)
+
+    actor = Actor(shape=shape,
+                  color=color,
+                  border=border,
+                  image_paths=image_path,
+                  image_scale_xy=scale_xy,
+                  image_transparent_color=transparent_color,
+                  image_transparency_enabled=transparency_enabled,
+                  image_shape_crop=shape_crop,
+                  visible=visible,
+                  draw_options=draw_options,)
+
+    _actors.append(actor)
+
+    return actor
 
 def create_ellipse(width:int=20, height:int=20,
                 color:PyGameColor="red",
@@ -179,12 +232,13 @@ def create_ellipse(width:int=20, height:int=20,
                 bottom_left:Coordinates=(0, 0),
                 angle=0.0, border=0,
                 transparent_color:Optional[PyGameColor]=None,
-                scale_xy:Tuple[float,float]=(1.0, 1.0),
+                scale_xy:Optional[Tuple[float,float]]=(1., 1.),
                 transparency_enabled:bool=True,
                 shape_crop:bool=True,
                 draw_options:Optional[DrawOptions]=None,
                 visible:bool=True,
-                density=0.0, elasticity=1.0, friction=0.0, unmoveable=False) -> Actor:
+                density=0.0, elasticity=1.0, friction=0.0, unmoveable=False,
+                velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
 
     body_type = pymunk.Body.KINEMATIC if density == 0.0 else pymunk.Body.DYNAMIC
     if unmoveable:
@@ -193,6 +247,8 @@ def create_ellipse(width:int=20, height:int=20,
     body = pymunk.Body(body_type=body_type)
     body.position = bottom_left[0] + width/2., bottom_left[1] + height/2.
     body.angle = angle
+    body.velocity = Vec2d(*velocity)
+    body.angular_velocity = math.radians(angular_velocity)
 
     shape = pymunk.Poly.create_box(body,
                                    size=(width, height),
@@ -225,12 +281,13 @@ def create_polygon_any(points:Sequence[Coordinates],
                 bottom_left:Coordinates=(0, 0),
                 angle=0.0, border=0,
                 transparent_color:Optional[PyGameColor]=None,
-                scale_xy:Tuple[float,float]=(1.0, 1.0),
+                scale_xy:Optional[Tuple[float,float]]=(1., 1.),
                 transparency_enabled:bool=True,
                 shape_crop:bool=True,
                 draw_options:Optional[DrawOptions]=None,
                 visible:bool=True,
-                density=0.0, elasticity=1.0, friction=0.0, unmoveable=False) -> Actor:
+                density=0.0, elasticity=1.0, friction=0.0, unmoveable=False,
+                velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
 
     body_type = pymunk.Body.KINEMATIC if density == 0.0 else pymunk.Body.DYNAMIC
     if unmoveable:
@@ -240,6 +297,8 @@ def create_polygon_any(points:Sequence[Coordinates],
     r = common.get_bounding_rect(points)
     body.position = bottom_left[0] + r[0]/2., bottom_left[1] + r[1]/2.
     body.angle = angle
+    body.velocity = Vec2d(*velocity)
+    body.angular_velocity = math.radians(angular_velocity)
 
     shape = pymunk.Poly(body, points, radius=_default_poly_radius)
     shape.density = density
@@ -269,19 +328,20 @@ def create_polygon(sides:int, width:int=20, height:int=20,
                 bottom_left:Coordinates=(0, 0),
                 angle=0.0, border=0,
                 transparent_color:Optional[PyGameColor]=None,
-                scale_xy:Tuple[float,float]=(1.0, 1.0),
+                scale_xy:Optional[Tuple[float,float]]=(1., 1.),
                 transparency_enabled:bool=True,
                 shape_crop:bool=True,
                 draw_options:Optional[DrawOptions]=None,
                 visible:bool=True,
-                density=0.0, elasticity=1.0, friction=0.0, unmoveable=False) -> Actor:
+                density=0.0, elasticity=1.0, friction=0.0, unmoveable=False,
+                velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
 
     points = common.polygon_points(sides, 0, 0, width, height)
 
     return create_polygon_any(points=points,
                 color=color,
                 image_path=image_path,
-                bottom_left=(x, y),
+                bottom_left=bottom_left,
                 angle=angle, border=border,
                 transparent_color=transparent_color,
                 scale_xy=scale_xy,
@@ -289,42 +349,48 @@ def create_polygon(sides:int, width:int=20, height:int=20,
                 shape_crop=shape_crop,
                 draw_options=draw_options,
                 visible=visible,
-                density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable)
+                density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable,
+                velocity=velocity, angular_velocity=angular_velocity)
 
 def create_screen_walls(left:bool=False, right:bool=False,
                         top:bool=False, bottom:bool=False,
                         color:PyGameColor=(0, 0, 0, 0),
                         border=0,
                         transparency_enabled:bool=False,
-                        density=1.0, elasticity=1.0, friction=0.0, unmoveable=True):
+                        density=1.0, elasticity=1.0, friction=0.0, unmoveable=True,
+                        velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> None:
     global _screen_walls
     if left:
         actor = create_rect(width=1, height=screen_height(),
                             bottom_left=(0, 0),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
-                            density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable)
+                            density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable,
+                            velocity=velocity, angular_velocity=angular_velocity)
         _screen_walls.append(actor)
     if right:
         actor = create_rect(width=1, height=screen_height(),
                             bottom_left=(screen_width()-border, 0),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
-                            density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable)
+                            density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable,
+                            velocity=velocity, angular_velocity=angular_velocity)
         _screen_walls.append(actor)
     if top:
         actor = create_rect(width=screen_width(), height=1,
                             bottom_left=(0, screen_height()-border),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
-                            density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable)
+                            density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable,
+                            velocity=velocity, angular_velocity=angular_velocity)
         _screen_walls.append(actor)
     if bottom:
         actor = create_rect(width=screen_width(), height=1,
                             bottom_left=(0, 0),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
-                            density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable)
+                            density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable,
+                            velocity=velocity, angular_velocity=angular_velocity)
         _screen_walls.append(actor)
 
 
@@ -334,7 +400,7 @@ def start(screen_title:str=_screen_props.title,
           screen_color:PyGameColor=_screen_props.color,
           screen_image_path:Optional[str]=_screen_props.image_path,
           screen_fps=_screen_props.fps,
-          gravity:Optional[float]=None):
+          gravity:Optional[Union[float, Vector2]]=None):
 
     global  _running, screen, draw_options
 
@@ -345,7 +411,11 @@ def start(screen_title:str=_screen_props.title,
     set_screen_title(screen_title)
 
     _running = True
-    space.gravity = (0.0, gravity) if gravity is not None else (0.0, 0.0)
+
+    if gravity is not None:
+        if not isinstance(gravity, Iterable):
+            gravity = (0.0, gravity)
+        space.gravity = Vec2d(*gravity)
 
     assert screen is not None, "screen is None"
     draw_options = pygame_util.DrawOptions(screen)

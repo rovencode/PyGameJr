@@ -18,7 +18,7 @@ class Actor:
                  color:PyGameColor="green",
                  border=0,
                  image_paths:Optional[Union[str, Iterable[str]]]=None,
-                 image_scale_xy:Tuple[float, float]=(1., 1.),
+                 image_scale_xy:Optional[Tuple[float,float]]=(1., 1.),
                  image_transparent_color:Optional[PyGameColor]=None,
                  image_transparency_enabled:bool=False,
                  image_shape_crop:bool=False,
@@ -54,8 +54,93 @@ class Actor:
     def hide(self):
         self.visible = False
 
+    @property
+    def velocity(self)->Vec2d:
+        return self.shape.body.velocity
+    @velocity.setter
+    def velocity(self, value:Vec2d):
+        self.shape.body.velocity = value
+    @property
+    def position(self)->Vec2d:
+        return self.shape.body.position
+    @position.setter
+    def position(self, value:Vec2d):
+        self.shape.body.position = value
+    @property
+    def angle(self)->float:
+        return math.degrees(self.shape.body.angle)
+    @angle.setter
+    def angle(self, value:float):
+        self.shape.body.angle = math.radians(value)
+    @property
+    def angular_velocity(self)->float:
+        return math.degrees(self.shape.body.angular_velocity)
+    @angular_velocity.setter
+    def angular_velocity(self, value:float):
+        self.shape.body.angular_velocity = math.radians(value)
+    @property
+    def mass(self)->float:
+        return self.shape.body.mass
+    @mass.setter
+    def mass(self, value:float):
+        self.shape.body.mass = value
+    @property
+    def moment(self)->float:
+        return self.shape.body.moment
+    @moment.setter
+    def moment(self, value:float):
+        self.shape.body.moment = value
+    @property
+    def friction(self)->float:
+        return self.shape.friction
+    @friction.setter
+    def friction(self, value:float):
+        self.shape.friction = value
+    @property
+    def elasticity(self)->float:
+        return self.shape.elasticity
+    @elasticity.setter
+    def elasticity(self, value:float):
+        self.shape.elasticity = value
+    @property
+    def collision_type(self)->int:
+        return self.shape.collision_type
+    @collision_type.setter
+    def collision_type(self, value:int):
+        self.shape.collision_type = value
+    @property
+    def group(self)->int:
+        return self.shape.group
+    @group.setter
+    def group(self, value:int):
+        self.shape.group = value
+
+    def apply_force(self, force:Coordinates, global_point:Coordinates=(0,0))->None:
+        self.shape.body.apply_force_at_world_point(force, global_point)
+    def apply_impulse(self, impulse:Coordinates, global_point:Coordinates=(0,0))->None:
+        self.shape.body.apply_impulse_at_world_point(impulse, global_point)
+    def apply_torque(self, torque:float)->None:
+        self.shape.body.apply_torque(torque)
+    def apply_local_force(self, force:Coordinates, local_point:Coordinates=(0,0))->None:
+        self.shape.body.apply_force_at_local_point(force, local_point)
+    def apply_local_impulse(self, impulse:Coordinates, local_point:Coordinates=(0,0))->None:
+        self.shape.body.apply_impulse_at_local_point(impulse, local_point)
+    def apply_impulse_torque(self, impulse_torque):
+        """
+        Apply an impulse torque to a PyMunk body.
+
+        :param body: The PyMunk body to which the impulse torque is applied.
+        :param impulse_torque: The amount of impulse torque to apply.
+        """
+        # Angular impulse is change in angular momentum, which is I * Δω
+        # Δω (change in angular velocity) = impulse_torque / moment_of_inertia
+        if self.shape.body.moment.iszero():
+            return
+        angular_velocity_change = impulse_torque / self.shape.body.moment
+        self.shape.body.angular_velocity += angular_velocity_change
+
     def add_costume(self, name:str, image_paths:Union[str, Iterable[str]],
-                    scale_xy:Tuple[float, float]=(1., 1.),
+                    scale_xy:Optional[Tuple[float,float]]=(1., 1.),
                     transparent_color:Optional[PyGameColor]=None,
                     transparency_enabled:bool=False,
                     shape_crop:bool=False,
@@ -214,10 +299,16 @@ class Actor:
                             self.animation.stop()
             self.current_image = self.current_costume.images[self.animation.image_index]
             # scale image
-            if self.current_costume.scale_xy != (1., 1.):
-                image = pygame.transform.scale(self.current_image,
-                    (int(self.current_image.get_width() * self.current_costume.scale_xy[0]),
-                        int(self.current_image.get_height() * self.current_costume.scale_xy[1])))
+            if self.current_costume.scale_xy is not None:
+                new_width = self.width() * self.current_costume.scale_xy[0]
+                new_height = self.height() * self.current_costume.scale_xy[1]
+
+                if abs(new_width-self.current_image.get_width())>2 or \
+                    abs(new_height-self.current_image.get_height())>2:
+                        self.current_image = pygame.transform.scale(
+                            self.current_image,(new_width, new_height))
+                else:
+                    self.current_image = self.current_image.copy()
             elif len(self.texts) > 0: # if we need to write texts then we need to make copy of the image
                 self.current_image = self.current_image.copy()
             # else no need to make copy

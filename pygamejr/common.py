@@ -16,7 +16,12 @@ RGBAOutput = Tuple[int, int, int, int]
 PyGameColor = Union[pygame.Color, int, str, Tuple[int, int, int], RGBAOutput, Sequence[int]]
 _images:Dict[str, pygame.Surface] = {} # cache of all loaded images
 
-Coordinates=Union[Tuple[int, int], Vec2d, namedtuple("Coordinates", ["x", "y"])]
+NumericNamedTuple = namedtuple('NumericNamedTuple', ['x', 'y'])
+NumericNamedTuple.__doc__ = """A named tuple with two numeric fields x and y."""
+NumericNamedTuple.__annotations__ = {'x': Union[int, float], 'y': Union[int, float]}
+
+Coordinates=Union[Tuple[int, int], Vec2d, NumericNamedTuple]
+Vector2=Union[Tuple[float, float], Vec2d, NumericNamedTuple]
 
 def get_image(image_path:str, cache=True)->pygame.Surface:
     """
@@ -138,7 +143,7 @@ class TextInfo:
 class CostumeSpec:
     name:str
     image_paths:Iterable[str]
-    scale_xy:Tuple[float, float]=(1., 1.)
+    scale_xy:Optional[Tuple[float,float]]=(1., 1.)
     transparent_color:Optional[PyGameColor]=None
     transparency_enabled:bool=False
     shape_crop:bool=False
@@ -164,7 +169,7 @@ class AnimationSpec:
 @dataclass
 class ImageSpec:
     image:pygame.Surface
-    image_scale_xy:Tuple[float, float]=(1., 1.)
+    image_scale_xy:Optional[Tuple[float,float]]=(1., 1.)
     image_transparency_enabled:bool=False
 
 @dataclass
