@@ -199,6 +199,7 @@ def rectangle_from_line(p1:Vec2d, p2:Vec2d)->Tuple[Vec2d, Vec2d, Vec2d, Vec2d]:
     return corner1, corner2, corner3, corner4
 
 def surface_from_shape(shape:pymunk.Shape,
+                   texts:Dict[str, TextInfo],
                    color:PyGameColor, border:int,
                    draw_options:Optional[DrawOptions],
                    image:Optional[pygame.Surface]=None,
@@ -276,6 +277,11 @@ def surface_from_shape(shape:pymunk.Shape,
     if draw_options and draw_options.center_radius:
         pygame.draw.circle(surface, draw_options.center_color,
                            center, draw_options.center_radius, 0)
+
+    for name, text_info in texts.items():
+        font = pygame.font.Font(text_info.font_name, text_info.font_size)
+        text_surface = font.render(text_info.text, True, text_info.color, text_info.background_color)
+        surface.blit(text_surface, (text_info.x, text_info.y))
 
     return surface, center
 

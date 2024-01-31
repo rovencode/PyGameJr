@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Set, Tuple, Union, Iterable, Callable, Sequence
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, Iterable, Callable, Sequence, Sized
 import math
 import timeit
 
@@ -170,11 +170,13 @@ class Actor:
         if change:
             self.current_costume = costume
 
-    def add_text(self, name:str, text:str, font_name:Optional[str]=None,
+    def add_text(self, text:str, font_name:Optional[str]=None,
               font_size:int=20,
               color:PyGameColor="black", x:int=0, y:int=0,
               background_color:Optional[PyGameColor]=None,
-              )->None:
+              name:Optional[str]=None)->None:
+        if name is None:
+            name = text
         self.texts[name] = TextInfo(text, font_name, font_size, color, x, y, background_color)
 
     def remove_text(self, name:str)->None:
@@ -190,8 +192,8 @@ class Actor:
     def glide_to(self, xy:Coordinates, speed:float=1.0)->None:
         """Smoothly move the body to a new position."""
         target_vector = Vec2d(*xy) - self.shape.body.position
-        if target_vector.length() > 0:
-            target_vector = target_vector.normalize() * speed
+        if target_vector.length > 0:
+            target_vector = target_vector.normalized() * speed
             self.shape.body.position = self.shape.body.position + target_vector
 
     def move_by(self, xy:Coordinates)->None:
@@ -214,7 +216,12 @@ class Actor:
         target_vector = Vec2d(*xy) - self.shape.body.position
         self.shape.body.angle = target_vector.angle
 
-    def touches(self, other:Optional[Union['Actor', List['Actor']]])->Union[List['Actor'], List[pymunk.ShapeQueryInfo]]:
+    def touches_at(self, point:Coordinates)->bool:
+        query_result = self.shape.point_query(point)
+        return query_result.distance <= 0
+
+
+    def touches(self, other:Optional[Union['Actor', Sequence['Actor']]])->Union[List['Actor'], List[pymunk.ShapeQueryInfo]]:
         if self.shape.space is None:
             return []
 
@@ -222,7 +229,7 @@ class Actor:
 
         if other  is None:
             other = []
-        elif not isinstance(other, list):
+        elif not isinstance(other, Sequence):
             other = [other]
 
         if len(other) == 0:
@@ -234,7 +241,7 @@ class Actor:
     def distance_to(self, xy:Coordinates)->float:
         """Return the distance to another sprite."""
         target_vector = Vec2d(*xy) - self.shape.body.position
-        return target_vector.length()
+        return target_vector.length
 
     def x(self)->float:
         return self.shape.body.position.x
@@ -313,11 +320,6 @@ class Actor:
                 self.current_image = self.current_image.copy()
             # else no need to make copy
 
-            for name, text_info in self.texts.items():
-                font = pygame.font.Font(text_info.font_name, text_info.font_size)
-                surface = font.render(text_info.text, True, text_info.color, text_info.background_color)
-                self.current_image.blit(surface, (text_info.x, text_info.y))
-
     def on_keypress(self, keys:Set[str]):
         pass
 
@@ -345,6 +347,7 @@ class Actor:
     def draw(self, screen:pygame.Surface):
         if self.visible:
             surface, center = surface_from_shape(shape=self.shape,
+                                         texts=self.texts,
                                          color=self.color,
                                          border=self.border,
                                          draw_options=self.draw_options,
