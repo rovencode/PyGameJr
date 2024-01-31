@@ -18,7 +18,7 @@ class Actor:
                  color:PyGameColor="green",
                  border=0,
                  image_paths:Optional[Union[str, Iterable[str]]]=None,
-                 image_scale_xy:Optional[Tuple[float,float]]=(1., 1.),
+                 image_scale_xy:Tuple[float,float]=(1., 1.),
                  image_transparent_color:Optional[PyGameColor]=None,
                  image_transparency_enabled:bool=False,
                  image_shape_crop:bool=False,
@@ -140,7 +140,7 @@ class Actor:
         self.shape.body.angular_velocity += angular_velocity_change
 
     def add_costume(self, name:str, image_paths:Union[str, Iterable[str]],
-                    scale_xy:Optional[Tuple[float,float]]=(1., 1.),
+                    scale_xy:Tuple[float,float]=(1., 1.),
                     transparent_color:Optional[PyGameColor]=None,
                     transparency_enabled:bool=False,
                     shape_crop:bool=False,
@@ -306,19 +306,60 @@ class Actor:
                             self.animation.stop()
             self.current_image = self.current_costume.images[self.animation.image_index]
             # scale image
-            if self.current_costume.scale_xy is not None:
-                new_width = self.width() * self.current_costume.scale_xy[0]
-                new_height = self.height() * self.current_costume.scale_xy[1]
-                tolerance = 0
-                if abs(new_width-self.current_image.get_width())>tolerance or \
-                    abs(new_height-self.current_image.get_height())>tolerance:
-                        self.current_image = pygame.transform.scale(
-                            self.current_image,(new_width, new_height))
-                else:
-                    self.current_image = self.current_image.copy()
-            elif len(self.texts) > 0: # if we need to write texts then we need to make copy of the image
+            if self.current_costume.scale_xy != (1., 1.):
+                self.current_image = pygame.transform.scale(
+                    self.current_image,(
+                        self.current_image.get_width()*self.current_costume.scale_xy[0], \
+                        self.current_image.get_height()*self.current_costume.scale_xy[1]
+                    ))
+            else:
                 self.current_image = self.current_image.copy()
-            # else no need to make copy
+
+    def _recreate_shape(self, new_width, new_height)->None:
+        self.shape.cache_bb()
+        width, height = self.width(), self.height()
+        body, space, offset = self.shape.body, self.shape.space, self.shape.offset
+        assert space is not None
+        space.remove(self.shape)
+        if isinstance(self.shape, pymunk.Circle):
+            self.shape = pymunk.Circle(body, max(new_width, new_height)/2., offset)
+        elif isinstance(self.shape, pymunk.Poly):
+            vertices, radius = self.shape.get_vertices(), self.shape.radius
+            x_scale, y_scale = new_width/width, new_height/height
+            vertices = [(v.x*x_scale, v.y*y_scale) for v in vertices]
+            self.shape = pymunk.Poly(body, vertices, radius=radius)
+        elif isinstance(self.shape, pymunk.Segment):
+            a, b, radius = self.shape.a, self.shape.b, self.shape.radius
+            a = (a.x*new_width/width, a.y*new_height/height)
+            b = (b.x*new_width/width, b.y*new_height/height)
+            self.shape = pymunk.Segment(body, a, b, radius)
+        else:
+            raise ValueError(f"Unknown shape type {self.shape}")
+        space.add(self.shape)
+
+
+    def fit_to_image(self)->None:
+        if self.current_costume is not None and len(self.current_costume.images):
+            new_width, new_height = self.current_costume.images[0].get_size()
+            if isinstance(self.shape, pymunk.Circle):
+                self.shape.unsafe_set_radius(max(new_width, new_height)/2.)
+            elif isinstance(self.shape, pymunk.Poly):
+                vertices = self.shape.get_vertices()
+                x_scale, y_scale = new_width/self.width(), new_height/self.height()
+                vertices = [(v.x*x_scale, v.y*y_scale) for v in vertices]
+                self.shape.unsafe_set_vertices(vertices)
+            elif isinstance(self.shape, pymunk.Segment):
+                a, b = self.shape.a, self.shape.b
+                a = (a.x*new_width/self.width(), a.y*new_height/self.height())
+                b = (b.x*new_width/self.width(), b.y*new_height/self.height())
+                self.shape.unsafe_set_endpoints(a, b)
+
+    def fit_image(self)->None:
+        if self.current_costume is not None and len(self.current_costume.images):
+            new_width, new_height = self.width(), self.height()
+            old_width, old_height = self.current_costume.images[0].get_size()
+            if new_width != old_width or new_height != old_height:
+                self.current_costume.scale_xy = (new_width/old_width, new_height/old_height)
 
     def on_keypress(self, keys:Set[str]):
         pass

@@ -13,6 +13,7 @@ for i in range(50):
                               velocity=(random.uniform(-200, 200),
                                         random.uniform(-200, 200)),
                               angular_velocity=random.uniform(-5, 5))
+    ball1.fit_image()
 
 
 

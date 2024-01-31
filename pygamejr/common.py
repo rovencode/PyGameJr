@@ -143,7 +143,7 @@ class TextInfo:
 class CostumeSpec:
     name:str
     image_paths:Iterable[str]
-    scale_xy:Optional[Tuple[float,float]]=(1., 1.)
+    scale_xy:Tuple[float,float]=(1., 1.)
     transparent_color:Optional[PyGameColor]=None
     transparency_enabled:bool=False
     shape_crop:bool=False
@@ -169,7 +169,7 @@ class AnimationSpec:
 @dataclass
 class ImageSpec:
     image:pygame.Surface
-    image_scale_xy:Optional[Tuple[float,float]]=(1., 1.)
+    image_scale_xy:Tuple[float,float]=(1., 1.)
     image_transparency_enabled:bool=False
 
 @dataclass
@@ -268,7 +268,7 @@ def surface_from_shape(shape:pymunk.Shape,
     # crop image outside of the shape
     if image is not None:
         if shape.body.angle != 0:
-            image = pygame.transform.rotate(image, math.degrees(shape.body.angle) + 180)
+            image = pygame.transform.rotate(image, math.degrees(shape.body.angle))
         image_center = Vec2d(image.get_width() / 2, image.get_height() / 2)
         # recenter image on the shape
         image_offset = image_center + center - Vec2d(image.get_width(), image.get_height())
