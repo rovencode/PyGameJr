@@ -229,7 +229,7 @@ class Actor:
             return colliding_shapes
         else:
             other_shapes = {o.shape:o for o in other}
-            return [other_shapes[s] for s in colliding_shapes if s in other_shapes]
+            return [other_shapes[s.shape] for s in colliding_shapes if s.shape in other_shapes]
 
     def distance_to(self, xy:Coordinates)->float:
         """Return the distance to another sprite."""
