@@ -276,3 +276,10 @@ def surface_from_shape(shape:pymunk.Shape,
 
     return surface, center
 
+def print_to(surface:pygame.Surface, text:str, topleft:Coordinates=Vec2d.zero(),
+             font_name:Optional[str]=None, font_size:int=20,
+             color:PyGameColor="black", background_color:Optional[PyGameColor]=None):
+    """Prints the given text to the given surface at the given position."""
+    font = pygame.font.Font(font_name, font_size)
+    text_surface = font.render(text, True, color, background_color)
+    surface.blit(text_surface, topleft)

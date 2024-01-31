@@ -14,6 +14,7 @@ from pygamejr.actor import Actor
 from pygamejr.common import PyGameColor, DrawOptions, Coordinates, Vector2
 
 _running = False # is game currently running?
+show_mouse_coordinates = False # show mouse coordinates in console?
 
 clock = pygame.time.Clock() # game clock
 screen:Optional[pygame.Surface] = None # game screen
@@ -520,6 +521,9 @@ def update():
         actor.update()
     for actor in _actors:
         actor.draw(screen)
+
+    if show_mouse_coordinates:
+        common.print_to(screen, f'{pygame_util.from_pygame(mouse_xy(), screen)}')
 
     # flip() the display to put your work on screen
     pygame.display.flip()
