@@ -10,9 +10,9 @@ for i in range(50):
                               center=(random.randint(100, game.screen_width()-100),
                                       random.randint(100, game.screen_height()-100)),
                               density=1,
-                              velocity=(random.uniform(-100, 100),
-                                        random.uniform(-100, 100)),
-                              angular_velocity=random.uniform(-100, 100))
+                              velocity=(random.uniform(-200, 200),
+                                        random.uniform(-200, 200)),
+                              angular_velocity=random.uniform(-5, 5))
 
 
 

@@ -37,6 +37,14 @@
             "justMyCode": true
         },
         {
+            "name": "ball_rotation",
+            "type": "python",
+            "request": "launch",
+            "program": "examples/ball_rotation.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",

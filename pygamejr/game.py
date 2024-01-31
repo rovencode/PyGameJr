@@ -13,6 +13,8 @@ from pygamejr import common
 from pygamejr.actor import Actor
 from pygamejr.common import PyGameColor, DrawOptions, Coordinates, Vector2
 
+TRANSPARENT_COLOR = (0, 0, 0, 0)
+
 _running = False # is game currently running?
 show_mouse_coordinates = False # show mouse coordinates in console?
 
@@ -149,8 +151,12 @@ def create_rect(width:int=20, height:int=20,
     if unmoveable:
         body_type = pymunk.Body.STATIC
 
+    # shape center is at (0,0)
+    r_bottom_left = Vec2d(-width/2., -height/2.)
+
     body = pymunk.Body(body_type=body_type)
-    body.position = bottom_left[0] + width/2., bottom_left[1] + height/2.
+    offset = Vec2d(*bottom_left) - r_bottom_left
+    body.position = offset # centroid is now zero so no need to add to offset
     body.angle = angle
     body.velocity = Vec2d(*velocity)
     body.angular_velocity = math.radians(angular_velocity)
@@ -197,10 +203,8 @@ def create_circle(radius:float=20,
     if unmoveable:
         body_type = pymunk.Body.STATIC
 
-    bottom_left = center[0]-radius, center[1]-radius
-
     body = pymunk.Body(body_type=body_type)
-    body.position = bottom_left[0]+radius, bottom_left[1]+radius
+    body.position = center
     body.angle = angle
     body.velocity = Vec2d(*velocity)
     body.angular_velocity = math.radians(angular_velocity)
@@ -294,9 +298,19 @@ def create_polygon_any(points:Sequence[Coordinates],
     if unmoveable:
         body_type = pymunk.Body.STATIC
 
-    body = pymunk.Body(body_type=body_type)
+    centroid = sum(points, Vec2d(0., 0.))
+    centroid = Vec2d(centroid[0]/len(points), centroid[1]/len(points))
+    # let the center be the origin
+    points = [Vec2d(*p) - centroid for p in points]
+
+    # new centroid i snow at (0,0)
+
     r = common.get_bounding_rect(points)
-    body.position = bottom_left[0] + r[0]/2., bottom_left[1] + r[1]/2.
+    r_bottom_left = Vec2d(r[2], r[3])
+
+    body = pymunk.Body(body_type=body_type)
+    offset = Vec2d(*bottom_left) - r_bottom_left
+    body.position = offset # centroid is now zero so no need to add to offset
     body.angle = angle
     body.velocity = Vec2d(*velocity)
     body.angular_velocity = math.radians(angular_velocity)
@@ -523,7 +537,7 @@ def update():
         actor.draw(screen)
 
     if show_mouse_coordinates:
-        common.print_to(screen, f'{pygame_util.from_pygame(mouse_xy(), screen)}')
+        common.print_to(screen, f'{mouse_xy()}')
 
     # flip() the display to put your work on screen
     pygame.display.flip()

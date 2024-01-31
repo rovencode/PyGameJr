@@ -302,9 +302,9 @@ class Actor:
             if self.current_costume.scale_xy is not None:
                 new_width = self.width() * self.current_costume.scale_xy[0]
                 new_height = self.height() * self.current_costume.scale_xy[1]
-
-                if abs(new_width-self.current_image.get_width())>2 or \
-                    abs(new_height-self.current_image.get_height())>2:
+                tolerance = 0
+                if abs(new_width-self.current_image.get_width())>tolerance or \
+                    abs(new_height-self.current_image.get_height())>tolerance:
                         self.current_image = pygame.transform.scale(
                             self.current_image,(new_width, new_height))
                 else:

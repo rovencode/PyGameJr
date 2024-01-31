@@ -210,10 +210,10 @@ def surface_from_shape(shape:pymunk.Shape,
     surface:Optional[pygame.Surface] = None
     center:Optional[Vec2d] = None
 
-    if image is not None and image_shape_crop:
-        # we use pygame.BLEND_RGBA_MULT to multiply the image with the color
-        # so that image outside of the shape is transparent
-        color = (255, 255, 255, 255)
+    # if image is not None and image_shape_crop:
+    #     # we use pygame.BLEND_RGBA_MULT to multiply the image with the color
+    #     # so that image outside of the shape is transparent
+    #     color = (255, 255, 255, 255)
 
     if isinstance(shape, pymunk.Circle):
         width, height = shape.radius*2, shape.radius*2
@@ -266,9 +266,12 @@ def surface_from_shape(shape:pymunk.Shape,
 
     # crop image outside of the shape
     if image is not None:
-        # rotate image
-        image = pygame.transform.rotate(image, math.degrees(shape.body.angle) + 180)
-        surface.blit(image, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        if shape.body.angle != 0:
+            image = pygame.transform.rotate(image, math.degrees(shape.body.angle) + 180)
+        image_center = Vec2d(image.get_width() / 2, image.get_height() / 2)
+        # recenter image on the shape
+        image_offset = image_center + center - Vec2d(image.get_width(), image.get_height())
+        surface.blit(image, image_offset)
 
     if draw_options and draw_options.center_radius:
         pygame.draw.circle(surface, draw_options.center_color,
