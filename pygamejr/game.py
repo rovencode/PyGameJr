@@ -99,6 +99,8 @@ def create_image(image_path:Union[str, Iterable[str]],
     image = common.get_image(image_path[0])
 
     width, height = image.get_size()
+    if scale_xy is not None:
+        width, height = width*scale_xy[0], height*scale_xy[1]
 
     body_type = pymunk.Body.KINEMATIC if density == 0.0 else pymunk.Body.DYNAMIC
     if unmoveable:
@@ -121,6 +123,7 @@ def create_image(image_path:Union[str, Iterable[str]],
 
     actor = Actor(shape=shape,
                   border=border,
+                  color=(0, 0, 0, 0),
                   image_paths=image_path,
                   image_scale_xy=scale_xy,
                   image_transparent_color=transparent_color,
