@@ -42,7 +42,7 @@ _actors_handlers:Dict[int, Set[Actor]] = {}
 _running = False # is game currently running?
 _default_poly_radius = 1
 _sounds:Dict[str, pygame.mixer.Sound] = {} # sounds
-
+_physics_fps_multiplier = 4
 
 @dataclass
 class ScreenProps:
@@ -211,7 +211,7 @@ def create_image(image_path:Union[str, Iterable[str]],
         shape.friction = friction
 
     space.add(body, shape)
-    if can_rotate:
+    if not can_rotate:
         shape.body.moment = float('inf')
 
     actor = Actor(shape=shape,
@@ -286,7 +286,7 @@ def create_rect(width:int=20, height:int=20,
         shape.friction = friction
 
     space.add(body, shape)
-    if can_rotate:
+    if not can_rotate:
         shape.body.moment = float('inf')
     actor = Actor(shape=shape,
                   color=color,
@@ -355,7 +355,7 @@ def create_circle(radius:float=20,
         shape.friction = friction
 
     space.add(body, shape)
-    if can_rotate:
+    if not can_rotate:
         shape.body.moment = float('inf')
 
     actor = Actor(shape=shape,
@@ -426,7 +426,7 @@ def create_ellipse(width:int=20, height:int=20,
         shape.friction = friction
 
     space.add(body, shape)
-    if can_rotate:
+    if not can_rotate:
         shape.body.moment = float('inf')
 
     actor = Actor(shape=shape,
@@ -507,7 +507,7 @@ def create_polygon_any(points:Sequence[Coordinates],
         shape.friction = friction
 
     space.add(body, shape)
-    if can_rotate:
+    if not can_rotate:
         shape.body.moment = float('inf')
 
     actor = Actor(shape=shape,
@@ -566,9 +566,7 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                         top:Optional[Union[float, bool]]=None,
                         bottom:Optional[Union[float, bool]]=None,
                         color:PyGameColor=(0, 0, 0, 0),
-                        width:int=1,
-                        border=0,
-                        transparency_enabled:bool=False,
+                        width:int=1, border=0, transparency_enabled:bool=False,
                         density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None) -> None:
 
     fixed_object=True
@@ -621,9 +619,10 @@ def start(screen_title:str=_screen_props.title,
           screen_color:PyGameColor=_screen_props.color,
           screen_image_path:Optional[str]=_screen_props.image_path,
           screen_fps=_screen_props.fps,
+          physics_fps_multiplier:int=4,
           gravity:Optional[Union[float, Vector2]]=None):
 
-    global  _running, screen, draw_options, noone
+    global  _running, screen, draw_options, noone, _physics_fps_multiplier
 
     set_screen_size(screen_width, screen_height)
     set_screen_color(screen_color)
@@ -632,11 +631,14 @@ def start(screen_title:str=_screen_props.title,
     set_screen_title(screen_title)
 
     _running = True
+    _physics_fps_multiplier = physics_fps_multiplier
 
     if gravity is not None:
         if not isinstance(gravity, Iterable):
             gravity = (0.0, gravity)
         space.gravity = Vec2d(*gravity)
+
+    space.sleep_time_threshold = 0.3
 
     assert screen is not None, "screen is None"
     draw_options = pygame_util.DrawOptions(screen)
@@ -706,7 +708,9 @@ def update():
 
     # first call physics so manual overrides can happen later
     # use fixed fps for dt instead of actual dt
-    space.step(1.0 / _screen_props.fps)
+    physics_fps = _screen_props.fps * _physics_fps_multiplier
+    for _ in range(_physics_fps_multiplier):
+        space.step(1.0 / physics_fps)
 
     # poll for events
     # pygame.QUIT event means the user clicked X to close your window

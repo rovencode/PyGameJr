@@ -167,8 +167,8 @@ class ImageSpec:
 
 @dataclass
 class DrawOptions:
-    angle_line_width=0
-    angle_line_color:PyGameColor="grey"
+    angle_line_width:int=0
+    angle_line_color:PyGameColor="black"
     center_radius:float=0
     center_color:PyGameColor="magenta"
 
@@ -212,9 +212,8 @@ def surface_from_shape(shape:pymunk.Shape,
         pygame.draw.circle(surface, color, center, shape.radius, border)
 
         if draw_options and draw_options.angle_line_width:
-            angle = math.degrees(shape.body.angle) + 180 # flipped y
-            end_pos = (center[0] + int(shape.radius * math.cos(angle)),
-                       center[1] - int(shape.radius * math.sin(angle)))
+            end_pos = (center[0] + int(shape.radius * math.cos(shape.body.angle)),
+                       center[1] - int(shape.radius * math.sin(shape.body.angle)))
             pygame.draw.line(surface, draw_options.angle_line_color,
                              center, end_pos, draw_options.angle_line_width)
 
@@ -247,7 +246,7 @@ def surface_from_shape(shape:pymunk.Shape,
         center = Vec2d(0-min1_x, height-(0-min1_y)-min2_y)
 
         if draw_options and draw_options.angle_line_width:
-            unit_vector = Vec2d(1, 0).rotated(shape.body.angle + math.pi) # add 180 degree to flip y
+            unit_vector = Vec2d(1, 0).rotated(shape.body.angle) # add 180 degree to flip y
             angle_vec = center + (unit_vector * (width + height) / 2.0)
             pygame.draw.line(surface, color, center, angle_vec, border)
     else:
