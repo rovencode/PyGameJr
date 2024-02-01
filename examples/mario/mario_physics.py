@@ -1,6 +1,8 @@
-from pygamejr import game, ImagePaintMode
+import random
+from pygamejr import game, ImagePaintMode, Vec2d
 
 game.show_mouse_coordinates = True
+game.set_camera_controls(True)
 game.start(screen_title="Mario Animation", screen_image_path="background.jpg",
            gravity=-500)
 
@@ -15,12 +17,14 @@ mario.start_animation(frame_time_s=0.2)
 
 # create platforms
 platforms = []
-for i in range(5):
-    platform = game.create_rect(300, 20, image_path="bricks.png",
-                    bottom_left=(300 + 150*i, 250 + 70*i),
+pos = Vec2d(300, 250)
+for i in range(500):
+    platform = game.create_rect(100, 20, image_path="bricks.png",
+                    bottom_left=pos,
                     paint_mode=ImagePaintMode.TILE, scale_xy=(0.5, 0.5),
                     density=1, friction=0.5, fixed_object=True)
     platforms.append(platform)
+    pos += Vec2d(random.randint(0, 100), random.randint(-100, 100))
 
 # play background music
 game.play_sound('music.mp3', loops=-1)

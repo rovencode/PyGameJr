@@ -13,7 +13,8 @@ from pymunk import pygame_util, Vec2d
 from pygamejr import utils
 from pygamejr import common
 from pygamejr.actor import Actor
-from pygamejr.common import PyGameColor, DrawOptions, Coordinates, Vector2, ImagePaintMode
+from pygamejr.common import PyGameColor, DrawOptions, Coordinates, Vector2, \
+                            ImagePaintMode, Camera, CameraControls
 
 TRANSPARENT_COLOR = (0, 0, 0, 0)
 
@@ -29,6 +30,9 @@ pygame_util.positive_y_is_up = True
 # pygame setup
 pygame.init()
 space = pymunk.Space() # physics space
+
+camera = Camera() # camera
+camera_controls:Optional[CameraControls] = None # camera controls
 
 down_keys:Set[str] = set()   # keys currently down
 down_mousbuttons:Set[str] = set()  # mouse buttons currently down
@@ -97,6 +101,34 @@ def remove_text(text:str, name:Optional[str]=None):
 def random_color(random_alpha=False)->PyGameColor:
     return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255),
             random.randint(0, 255) if random_alpha else 255)
+
+def set_camera_controls(controls:Optional[Union[bool, CameraControls]]=None):
+    global camera_controls
+    camera_controls = (CameraControls() if controls else None) if isinstance(controls, bool) else controls
+
+def _camera_controls_keydown(keys:Set[str], *args, **kwargs):
+    global camera_controls, camera
+    if camera_controls:
+        if camera_controls.pan_up_key in keys:
+            camera.move_by((0, camera_controls.pan_speed))
+        elif camera_controls.pan_down_key in keys:
+            camera.move_by((0, -camera_controls.pan_speed))
+        elif camera_controls.pan_left_key in keys:
+            camera.move_by((-camera_controls.pan_speed, 0))
+        elif camera_controls.pan_right_key in keys:
+            camera.move_by((camera_controls.pan_speed, 0))
+        elif camera_controls.zoom_in_key in keys:
+            camera.zoom_by(camera_controls.zoom_speed)
+        elif camera_controls.zoom_out_key in keys:
+            camera.zoom_by(1./camera_controls.zoom_speed)
+        elif camera_controls.rotate_left_key in keys:
+            camera.turn_by(camera_controls.rotate_speed)
+        elif camera_controls.rotate_right_key in keys:
+            camera.turn_by(-camera_controls.rotate_speed)
+        elif camera_controls.reset_key in keys:
+            camera.reset()
+        else:
+            pass
 
 def event_to_code(name:str)->int:
     if name == "on_keydown":
@@ -744,13 +776,13 @@ def update():
                                  event.scancode, event.window)
         if event.type == pygame.MOUSEBUTTONDOWN:
             button_name = mouse_button_name(event.button)
+            down_mousbuttons.add(button_name)
             pos = pygame_util.from_pygame(Vec2d(*event.pos), screen)
             for actor in _actors_handlers.get(pygame.MOUSEBUTTONDOWN, []):
                 actor.on_mousedown(pos, button_name, event.button,
                                    event.touch, event.window)
         if event.type == pygame.MOUSEBUTTONUP:
             button_name = mouse_button_name(event.button)
-            down_mousbuttons.remove(button_name)
             pos = pygame_util.from_pygame(Vec2d(*event.pos), screen)
             for actor in _actors_handlers.get(pygame.MOUSEBUTTONUP, []):
                 actor.on_mouseup(pos, button_name, event.button,
@@ -764,6 +796,9 @@ def update():
             for actor in _actors_handlers.get(pygame.MOUSEWHEEL, []):
                 actor.on_mousewheel(event.x, event.y, event.flipped,
                                     event.touch, event.window)
+
+        if down_keys:
+            _camera_controls_keydown(down_keys)
 
         if event.type==pygame.KEYUP and down_keys:
             for actor in _actors_handlers.get(pygame.KEYUP, []):
@@ -787,7 +822,7 @@ def update():
     for actor in _actors:
         actor.update()
     for actor in _actors:
-        actor.draw(screen)
+        actor.draw(screen, camera=camera)
 
     # draw texts from noone
     common.draw_texts(screen, noone.texts)

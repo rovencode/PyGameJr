@@ -1,6 +1,7 @@
 from pygamejr import game
 
 game.show_mouse_coordinates = True
+game.set_camera_controls(True)
 game.start(screen_title="Mario Animation", screen_image_path="background.jpg")
 
 mario = game.create_image(image_path=["mario1.png", "mario2.png", "mario3.png"],

@@ -1,1 +1,1 @@
-from pygamejr.common import Vector2, ImagePaintMode, DrawOptions
+from pygamejr.common import Vector2, ImagePaintMode, DrawOptions, Vec2d

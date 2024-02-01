@@ -8,7 +8,7 @@ from pymunk import pygame_util, Vec2d
 
 from pygamejr.common import PyGameColor, AnimationSpec, TextInfo,  \
                             surface_from_shape, CostumeSpec, Coordinates, \
-                            DrawOptions, ImagePaintMode
+                            DrawOptions, ImagePaintMode, Camera
 from pygamejr import common
 
 
@@ -200,9 +200,9 @@ class Actor:
             target_vector = target_vector.normalized() * speed
             self.shape.body.position = self.shape.body.position + target_vector
 
-    def move_by(self, xy:Coordinates)->None:
+    def move_by(self, delta:Coordinates)->None:
         """Move the body by a vector."""
-        self.shape.body.position = self.shape.body.position + Vec2d(*xy)
+        self.shape.body.position = self.shape.body.position + Vec2d(*delta)
     def move_to(self, xy:Coordinates)->None:
         """Move the body to a new position."""
         self.shape.body.position = Vec2d(*xy)
@@ -396,7 +396,7 @@ class Actor:
     def on_quit(self)->bool:
         return False # continue quiting
 
-    def draw(self, screen:pygame.Surface):
+    def draw(self, screen:pygame.Surface, camera:Camera)->None:
         if self.visible:
             surface, center = surface_from_shape(shape=self.shape,
                                          texts=self.texts,
@@ -405,6 +405,10 @@ class Actor:
                                          draw_options=self.draw_options,
                                          image=self.current_image,
                                          image_paint_mode=self.current_costume.paint_mode \
-                                            if self.current_costume else ImagePaintMode.CENTER ,)
-            pos = Vec2d(*pygame_util.to_pygame(self.shape.body.position, screen))
-            screen.blit(surface, pos-center)
+                                            if self.current_costume else ImagePaintMode.CENTER ,
+                                         camera=camera)
+
+            body_pos = camera.apply([self.shape.body.position])[0]
+            body_top_left = body_pos-Vec2d(center[0], -center[1])
+            top_left = Vec2d(*pygame_util.to_pygame(body_top_left, screen))
+            screen.blit(surface, top_left)

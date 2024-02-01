@@ -141,6 +141,81 @@ class CostumeSpec:
     images:List[pygame.Surface]=field(default_factory=list)
     paint_mode:ImagePaintMode=ImagePaintMode.CENTER
 
+
+@dataclass
+class CameraControls:
+    zoom_in_key='z'
+    zoom_out_key='x'
+    pan_left_key='a'
+    pan_right_key='d'
+    pan_up_key='w'
+    pan_down_key='s'
+    rotate_left_key='q'
+    rotate_right_key='e'
+    zoom_speed:float=1.1
+    pan_speed:float=10.
+    rotate_speed:float=5.
+    reset_key:str='r'
+class Camera:
+    def __init__(self) -> None:
+        self.bottom_left:Vec2d=Vec2d.zero()
+        self.angle:float=0
+        self.scale=1.0
+        self._update_transform()
+
+    def _update_transform(self):
+        if self.angle == 0:
+            self.theta = 0
+            self.rotation_matrix = np.eye(2)
+        else:
+            # Convert angle to radians
+            self.theta = np.radians(self.angle)
+            # Create rotation matrix
+            self.rotation_matrix = np.array([[np.cos(self.theta), -np.sin(self.theta)],
+                                        [np.sin(self.theta),  np.cos(self.theta)]])
+        # Create scaling matrix
+        self.scaling_matrix = np.array([[self.scale, 0],
+                                [0, self.scale]])
+
+    def apply(self, points:Sequence[Coordinates],
+              translate=True, scale=True, rotate=True)->List[Vec2d]:
+        points = np.array(points) # type: ignore
+
+        if scale:
+            points = np.dot(points, self.scaling_matrix)
+
+        if rotate:
+            points = np.dot(points, self.rotation_matrix.T)
+
+        if translate:
+            points = points + self.bottom_left # type: ignore
+
+        return [Vec2d(*v) for v in points]
+
+    def move_by(self, delta:Coordinates):
+        self.bottom_left += Vec2d(*delta)
+        self._update_transform()
+    def move_to(self, pos:Coordinates):
+        self.bottom_left = Vec2d(*pos)
+        self._update_transform()
+    def turn_by(self, angle:float):
+        self.angle += angle
+        self._update_transform()
+    def turn_to(self, angle:float):
+        self.angle = angle
+        self._update_transform()
+    def zoom_by(self, scale:float):
+        self.scale *= scale
+        self._update_transform()
+    def zoom_to(self, scale:float):
+        self.scale = scale
+        self._update_transform()
+    def reset(self):
+        self.bottom_left = Vec2d.zero()
+        self.angle = 0
+        self.scale = 1.0
+        self._update_transform()
+
 @dataclass
 class AnimationSpec:
     frame_time_s:float=0.1
@@ -195,6 +270,7 @@ def surface_from_shape(shape:pymunk.Shape,
                    texts:Dict[str, TextInfo],
                    color:PyGameColor, border:int,
                    draw_options:Optional[DrawOptions],
+                   camera:Camera,
                    image:Optional[pygame.Surface]=None,
                    image_paint_mode:ImagePaintMode=ImagePaintMode.CENTER)->Tuple[pygame.Surface, Vec2d]:
     """Creates the surface to fit the given shape and draws on the shape on it.
@@ -205,23 +281,39 @@ def surface_from_shape(shape:pymunk.Shape,
     center:Optional[Vec2d] = None
 
     if isinstance(shape, pymunk.Circle):
-        width, height = shape.radius*2, shape.radius*2
         center = Vec2d(shape.radius, shape.radius)
+        radius = shape.radius
+        angle = shape.body.angle
+
+        # apply transforms
+        # No translate because it gets applied by body position later
+        center = camera.apply([center], translate=False, rotate=False)[0]
+        radius *= camera.scale
+        angle += camera.theta
+
+        width, height = int(radius*2), int(radius*2)
+
         surface = pygame.Surface((width, height), pygame.SRCALPHA)
         surface.fill((0, 0, 0, 0)) # transparent initial surface
-        pygame.draw.circle(surface, color, center, shape.radius, border)
+        pygame.draw.circle(surface, color, center, radius, border)
 
         if draw_options and draw_options.angle_line_width:
-            end_pos = (center[0] + int(shape.radius * math.cos(shape.body.angle)),
-                       center[1] - int(shape.radius * math.sin(shape.body.angle)))
+            end_pos = (center[0] + int(radius * math.cos(angle)),
+                       center[1] - int(radius * math.sin(angle)))
             pygame.draw.line(surface, draw_options.angle_line_color,
-                             center, end_pos, draw_options.angle_line_width)
+                             center, end_pos, round(draw_options.angle_line_width*camera.scale))
 
     elif isinstance(shape, pymunk.Poly) or isinstance(shape, pymunk.Segment):
+        angle = shape.body.angle
         vertices = shape.get_vertices() if isinstance(shape, pymunk.Poly) \
                     else rectangle_from_line(shape.a, shape.b)
         # rotate vertices
         vertices = [v.rotated(shape.body.angle) for v in vertices]
+
+        # apply transforms
+        # no translate because it gets applied by body position later
+        vertices = camera.apply(vertices, translate=False)
+        angle += camera.theta
 
         min1_x = min([v.x for v in vertices])
         min1_y = min([v.y for v in vertices])
@@ -246,7 +338,7 @@ def surface_from_shape(shape:pymunk.Shape,
         center = Vec2d(0-min1_x, height-(0-min1_y)-min2_y)
 
         if draw_options and draw_options.angle_line_width:
-            unit_vector = Vec2d(1, 0).rotated(shape.body.angle) # add 180 degree to flip y
+            unit_vector = Vec2d(1, 0).rotated(angle) # add 180 degree to flip y
             angle_vec = center + (unit_vector * (width + height) / 2.0)
             pygame.draw.line(surface, color, center, angle_vec, border)
     else:
@@ -254,12 +346,30 @@ def surface_from_shape(shape:pymunk.Shape,
 
     # crop image outside of the shape
     if image is not None:
-        if shape.body.angle != 0:
-            image = pygame.transform.rotate(image, math.degrees(shape.body.angle))
+        # image without transformations
+        angle = shape.body.angle
+        if angle != 0:
+            image = pygame.transform.rotate(image, math.degrees(angle))
+
+        image_rect = [(0, 0), (image.get_width(), 0),
+                      (image.get_width(), image.get_height()), (0, image.get_height())]
+
+
+        # apply scale and rotation
+        if camera.scale != 1.0:
+            image = pygame.transform.scale(image, (int(image.get_width()*camera.scale),
+                                                   int(image.get_height()*camera.scale)))
+        if camera.theta != 0:
+            image = pygame.transform.rotate(image, math.degrees(camera.theta))
+
         if image_paint_mode == ImagePaintMode.CENTER:
-            image_center = Vec2d(image.get_width() / 2, image.get_height() / 2)
+            image_rect = camera.apply(image_rect, translate=False)
+            max_x, min_x = max([v.x for v in image_rect]), min([v.x for v in image_rect])
+            max_y, min_y = max([v.y for v in image_rect]), min([v.y for v in image_rect])
+            width, height = max_x - min_x, max_y - min_y
             # recenter image on the shape
-            image_offset = image_center + center - Vec2d(image.get_width(), image.get_height())
+            image_offset = center - Vec2d(width, height)/2.
+
             surface.blit(image, image_offset)
         else:
             # Get the size of the texture image
