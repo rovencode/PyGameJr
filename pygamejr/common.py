@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 import math
 import os
 import timeit
+from enum import Enum
 
 import numpy as np
 
@@ -20,6 +21,7 @@ NumericNamedTuple = namedtuple('NumericNamedTuple', ['x', 'y'])
 NumericNamedTuple.__doc__ = """A named tuple with two numeric fields x and y."""
 NumericNamedTuple.__annotations__ = {'x': Union[int, float], 'y': Union[int, float]}
 
+# types that accepts tuples of vectors
 Coordinates=Union[Tuple[float, float], Vec2d, NumericNamedTuple]
 Vector2=Union[Tuple[float, float], Vec2d, NumericNamedTuple]
 
@@ -115,19 +117,10 @@ def collide_mask_ex(left:pygame.sprite.Sprite, right:pygame.sprite.Sprite)->bool
         return left.rect.colliderect(right.rect) # type: ignore
 
 
-@dataclass
-class Physics:
-    enabled:bool = False
-    velocity:pygame.math.Vector2 = field(default_factory=pygame.math.Vector2)
-    force:pygame.math.Vector2 = field(default_factory=pygame.math.Vector2)
-    mass:float = 1.0
-    fixed:bool = False # can this object move (for example walls are fixed)?
-    infinite_wall:bool = False # is this an infinite wall which may not have center (for example the bottom wall)?
 
-    def __post_init__(self):
-        # if fixed object, then mass is infinite
-        if self.fixed:
-            self.mass = 1.0E9 # some high number to represent infinity
+class ImagePaintMode(Enum):
+    CENTER = 1
+    TILE = 2
 
 @dataclass
 class TextInfo:
@@ -146,8 +139,9 @@ class CostumeSpec:
     scale_xy:Tuple[float,float]=(1., 1.)
     transparent_color:Optional[PyGameColor]=None
     transparency_enabled:bool=False
-    shape_crop:bool=False
     images:List[pygame.Surface]=field(default_factory=list)
+    paint_mode:ImagePaintMode=ImagePaintMode.CENTER
+
 @dataclass
 class AnimationSpec:
     frame_time_s:float=0.1
@@ -203,18 +197,13 @@ def surface_from_shape(shape:pymunk.Shape,
                    color:PyGameColor, border:int,
                    draw_options:Optional[DrawOptions],
                    image:Optional[pygame.Surface]=None,
-                   image_shape_crop:bool=True)->Tuple[pygame.Surface, Vec2d]:
+                   image_paint_mode:ImagePaintMode=ImagePaintMode.CENTER)->Tuple[pygame.Surface, Vec2d]:
     """Creates the surface to fit the given shape and draws on the shape on it.
        Also returns the local coordinates of the center in pygame coordinates.
     """
 
     surface:Optional[pygame.Surface] = None
     center:Optional[Vec2d] = None
-
-    # if image is not None and image_shape_crop:
-    #     # we use pygame.BLEND_RGBA_MULT to multiply the image with the color
-    #     # so that image outside of the shape is transparent
-    #     color = (255, 255, 255, 255)
 
     if isinstance(shape, pymunk.Circle):
         width, height = shape.radius*2, shape.radius*2
@@ -269,10 +258,19 @@ def surface_from_shape(shape:pymunk.Shape,
     if image is not None:
         if shape.body.angle != 0:
             image = pygame.transform.rotate(image, math.degrees(shape.body.angle))
-        image_center = Vec2d(image.get_width() / 2, image.get_height() / 2)
-        # recenter image on the shape
-        image_offset = image_center + center - Vec2d(image.get_width(), image.get_height())
-        surface.blit(image, image_offset)
+        if image_paint_mode == ImagePaintMode.CENTER:
+            image_center = Vec2d(image.get_width() / 2, image.get_height() / 2)
+            # recenter image on the shape
+            image_offset = image_center + center - Vec2d(image.get_width(), image.get_height())
+            surface.blit(image, image_offset)
+        else:
+            # Get the size of the texture image
+            texture_width, texture_height = image.get_size()
+            surface_width, surface_height = surface.get_size()
+            # Tile the image across the screen
+            for x in range(0, surface_width, texture_width):
+                for y in range(0, surface_height, texture_height):
+                    surface.blit(image, (x, y))
 
     if draw_options and draw_options.center_radius:
         pygame.draw.circle(surface, draw_options.center_color,

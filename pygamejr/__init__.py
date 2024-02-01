@@ -1,2 +1,1 @@
-from .common import Physics
-from pygame.math import Vector2
+from pygamejr.common import Vector2, ImagePaintMode

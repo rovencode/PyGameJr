@@ -8,7 +8,7 @@ from pymunk import pygame_util, Vec2d
 
 from pygamejr.common import PyGameColor, AnimationSpec, TextInfo,  \
                             surface_from_shape, CostumeSpec, Coordinates, \
-                            DrawOptions
+                            DrawOptions, ImagePaintMode
 from pygamejr import common
 
 
@@ -20,8 +20,8 @@ class Actor:
                  image_paths:Optional[Union[str, Iterable[str]]]=None,
                  image_scale_xy:Tuple[float,float]=(1., 1.),
                  image_transparent_color:Optional[PyGameColor]=None,
-                 image_transparency_enabled:bool=False,
-                 image_shape_crop:bool=False,
+                 image_transparency_enabled:bool=True,
+                 image_paint_mode:ImagePaintMode=ImagePaintMode.CENTER,
                  visible:bool=True,
                  draw_options:Optional[DrawOptions]=None):
 
@@ -43,7 +43,8 @@ class Actor:
                             scale_xy=image_scale_xy,
                             transparent_color=image_transparent_color,
                             transparency_enabled=image_transparency_enabled,
-                            shape_crop=image_shape_crop, change=True)
+                            paint_mode=image_paint_mode,
+                            change=True)
 
     def start_animation(self, loop:bool=True, from_index=0, frame_time_s:float=0.1):
         self.animation.start(loop, from_index, frame_time_s)
@@ -143,7 +144,7 @@ class Actor:
                     scale_xy:Tuple[float,float]=(1., 1.),
                     transparent_color:Optional[PyGameColor]=None,
                     transparency_enabled:bool=False,
-                    shape_crop:bool=False,
+                    paint_mode:ImagePaintMode=ImagePaintMode.CENTER,
                     change:bool=False):
 
         if isinstance(image_paths, str):
@@ -153,7 +154,7 @@ class Actor:
                         scale_xy=scale_xy,
                         transparent_color=transparent_color,
                         transparency_enabled=transparency_enabled,
-                        shape_crop=shape_crop)
+                        paint_mode=paint_mode)
         self.costumes[name] = costume
 
         for image_path in image_paths:
@@ -393,7 +394,7 @@ class Actor:
                                          border=self.border,
                                          draw_options=self.draw_options,
                                          image=self.current_image,
-                                         image_shape_crop=self.current_costume.shape_crop \
-                                             if self.current_costume else True)
+                                         image_paint_mode=self.current_costume.paint_mode \
+                                            if self.current_costume else ImagePaintMode.CENTER ,)
             pos = Vec2d(*pygame_util.to_pygame(self.shape.body.position, screen))
             screen.blit(surface, pos-center)
