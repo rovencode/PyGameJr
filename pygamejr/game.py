@@ -36,7 +36,7 @@ down_mousbuttons:Set[str] = set()  # mouse buttons currently down
 noone:Actor = None # type: ignore
 
 # private variables
-_actors = [] # list of all actors
+_actors:Set[Actor] = set() # list of all actors
 # for each handler type, keep list of actors that have that handler
 _actors_handlers:Dict[int, Set[Actor]] = {}
 _running = False # is game currently running?
@@ -225,7 +225,7 @@ def create_image(image_path:Union[str, Iterable[str]],
                   visible=visible,
                   draw_options=draw_options,)
 
-    _actors.append(actor)
+    _actors.add(actor)
 
     return actor
 
@@ -299,7 +299,7 @@ def create_rect(width:int=20, height:int=20,
                   visible=visible,
                   draw_options=draw_options,)
 
-    _actors.append(actor)
+    _actors.add(actor)
 
     return actor
 
@@ -369,7 +369,7 @@ def create_circle(radius:float=20,
                   visible=visible,
                   draw_options=draw_options,)
 
-    _actors.append(actor)
+    _actors.add(actor)
 
     return actor
 
@@ -440,7 +440,7 @@ def create_ellipse(width:int=20, height:int=20,
                   visible=visible,
                   draw_options=draw_options,)
 
-    _actors.append(actor)
+    _actors.add(actor)
 
     return actor
 
@@ -521,7 +521,7 @@ def create_polygon_any(points:Sequence[Coordinates],
                   visible=visible,
                   draw_options=draw_options,)
 
-    _actors.append(actor)
+    _actors.add(actor)
 
     return actor
 
@@ -648,6 +648,11 @@ def start(screen_title:str=_screen_props.title,
                         color=(0, 0, 0, 0), bottom_left=(-1000,-1000), visible=False)
     # this body doesn't collide with anything
     noone.shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
+
+def remove(actor:Actor):
+    """Remove actor from game"""
+    _actors.remove(actor)
+    space.remove(actor.shape, actor.shape.body)
 
 def screen_size()->Tuple[int, int]:
     return _screen_props.width, _screen_props.height
