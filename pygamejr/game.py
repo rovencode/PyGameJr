@@ -44,7 +44,7 @@ class CameraFollow:
     actor:Optional['Actor']=None
     offset:Vec2d=Vec2d.zero()
     min_distance:float=100
-    speed:float=10
+    speed:float=50
     min_angle:float=5
     angle_speed:float=1
 
@@ -783,7 +783,7 @@ def update():
         space.step(1.0 / physics_fps)
 
     if _camera_follow.actor:
-        ds = (camera.bottom_left + _camera_follow.offset - _camera_follow.actor.bottomleft())
+        ds = ((_camera_follow.actor.bottomleft()-_camera_follow.offset)-camera.bottom_left)
         if ds.length > _camera_follow.min_distance:
             ds = ds.normalized() * _camera_follow.speed
             camera.move_by(ds)

@@ -188,7 +188,7 @@ class Camera:
             points = np.dot(points, self.rotation_matrix.T)
 
         if translate:
-            points = points + self.bottom_left # type: ignore
+            points = points - self.bottom_left # type: ignore
 
         return [Vec2d(*v) for v in points]
 
