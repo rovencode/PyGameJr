@@ -22,6 +22,9 @@ for i in range(5):
                     density=1, friction=0.5, fixed_object=True)
     platforms.append(platform)
 
+# play background music
+game.play_sound('music.mp3', loops=-1)
+
 def mario_keyboard(mario, keys):
     if "left" in keys:
         mario.apply_impulse((-10000, 0))
@@ -29,6 +32,7 @@ def mario_keyboard(mario, keys):
         mario.apply_impulse((10000, 0))
     elif "up" in keys:
         mario.apply_impulse((0, 50000))
+        game.play_sound('jump.mp3')
     elif "down" in keys:
         mario.apply_impulse((0, -1000))
 game.handle(mario.on_keypress, mario_keyboard)

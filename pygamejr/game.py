@@ -37,6 +37,8 @@ down_mousbuttons = set()  # mouse buttons currently down
 
 _default_poly_radius = 1
 
+_sounds:Dict[str, pygame.mixer.Sound] = {} # sounds
+
 @dataclass
 class ScreenProps:
     """Screen properties"""
@@ -591,6 +593,24 @@ def too_bottom(actor:Actor)->bool:
 def mouse_xy()->Tuple[int, int]:
     assert screen is not None, "screen is None"
     return pygame_util.from_pygame(pygame.mouse.get_pos(), screen)
+
+def play_sound(file_path:str, loops:int=0, volume:float=1., max_time=0, fade_ms=0)->pygame.mixer.Sound:
+    global _sounds
+
+    if file_path not in _sounds:
+        sound = pygame.mixer.Sound(utils.full_path_abs(file_path))
+        sound.set_volume(volume)
+        _sounds[file_path] = sound
+    sound = _sounds[file_path]
+
+    sound.play(loops, max_time, fade_ms)
+    return sound
+
+def stop_sound(file_path:str)->None:
+    global _sounds
+
+    if file_path in _sounds:
+        _sounds[file_path].stop()
 
 def end():
     global _running
