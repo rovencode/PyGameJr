@@ -251,26 +251,26 @@ class Actor:
         return self.shape.body.position.x
     def y(self)->float:
         return self.shape.body.position.y
-    def center(self)->Tuple[float, float]:
-        return self.x(), self.y()
+    def center(self)->Vec2d:
+        return Vec2d(self.x(), self.y())
     def width(self)->float:
         self.shape.cache_bb()
         return self.shape.bb.right - self.shape.bb.left
     def height(self)->float:
         self.shape.cache_bb()
         return self.shape.bb.top - self.shape.bb.bottom
-    def topleft(self)->Tuple[float, float]:
+    def topleft(self)->Vec2d:
         self.shape.cache_bb()
-        return self.shape.bb.left, self.shape.bb.top
-    def topright(self)->Tuple[float, float]:
+        return Vec2d(self.shape.bb.left, self.shape.bb.top)
+    def topright(self)->Vec2d:
         self.shape.cache_bb()
-        return self.shape.bb.right, self.shape.bb.top
-    def bottomleft(self)->Tuple[float, float]:
+        return Vec2d(self.shape.bb.right, self.shape.bb.top)
+    def bottomleft(self)->Vec2d:
         self.shape.cache_bb()
-        return self.shape.bb.left, self.shape.bb.bottom
-    def bottomright(self)->Tuple[float, float]:
+        return Vec2d(self.shape.bb.left, self.shape.bb.bottom)
+    def bottomright(self)->Vec2d:
         self.shape.cache_bb()
-        return self.shape.bb.right, self.shape.bb.bottom
+        return Vec2d(self.shape.bb.right, self.shape.bb.bottom)
     def top(self)->float:
         self.shape.cache_bb()
         return self.shape.bb.top

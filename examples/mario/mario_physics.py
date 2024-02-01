@@ -7,7 +7,7 @@ game.start(screen_title="Mario Animation", screen_image_path="background.jpg",
            gravity=-900)
 
 # create ground
-ground = game.create_screen_walls(bottom=112, friction=0.5)[0]
+ground = game.create_screen_walls(bottom=112, friction=0.5, extra_length=4000)[0]
 assert ground, "ground not created"
 
 # create Mario
@@ -15,7 +15,7 @@ mario = game.create_image(image_path=["mario1.png", "mario2.png", "mario3.png"],
                           bottom_left=(100,200), scale_xy=(0.5, 0.5),
                           density=1, elasticity=0.6, friction=0.1, can_rotate=False)
 mario.start_animation(frame_time_s=0.2)
-#game.camera_follow(mario)
+game.camera_follow(mario)
 
 # create platforms
 platforms = []

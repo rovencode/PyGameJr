@@ -43,6 +43,10 @@ noone:Actor = None # type: ignore
 class CameraFollow:
     actor:Optional['Actor']=None
     offset:Vec2d=Vec2d.zero()
+    min_distance:float=100
+    speed:float=10
+    min_angle:float=5
+    angle_speed:float=1
 
 # private variables
 _actors:Set[Actor] = set() # list of all actors
@@ -66,6 +70,17 @@ class ScreenProps:
     image_scaled:Optional[pygame.Surface]=None # scaled image to display on screen
     title:str="PyGameJr Rocks"
 _screen_props = ScreenProps()
+
+def mute():
+    """Mute all sounds"""
+    pygame.mixer.music.set_volume(0)
+    for sound in _sounds.values():
+        sound.set_volume(0)
+def unmute():
+    """Unmute all sounds"""
+    pygame.mixer.music.set_volume(1)
+    for sound in _sounds.values():
+        sound.set_volume(1)
 
 def is_running()->bool:
     """Is the game currently running?"""
@@ -272,7 +287,7 @@ def create_image(image_path:Union[str, Iterable[str]],
 
     return actor
 
-def create_rect(width:int=20, height:int=20,
+def create_rect(width:float=20, height:float=20,
                 color:PyGameColor="red",
                 image_path:Union[str, Iterable[str]]=[],
                 bottom_left:Optional[Coordinates]=None,
@@ -610,6 +625,7 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                         bottom:Optional[Union[float, bool]]=None,
                         color:PyGameColor=(0, 0, 0, 0),
                         width:int=1, border=0, transparency_enabled:bool=False,
+                        extra_length:float=0.,
                         density:Optional[float]=None, elasticity:Optional[float]=None,
                         friction:Optional[float]=None) -> Tuple[Optional[Actor], Optional[Actor], Optional[Actor], Optional[Actor]]:
 
@@ -625,32 +641,32 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
 
     left_wall, right_wall, top_wall, bottom_wall = None, None, None, None
     if left is not None:
-        left_wall = create_rect(width=width, height=screen_height(),
-                            bottom_left=(left, 0),
+        left_wall = create_rect(width=width, height=screen_height()+extra_length,
+                            bottom_left=(left, 0-extra_length/2.),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
                             fixed_object=fixed_object, can_rotate=can_rotate,
                             velocity=velocity, angular_velocity=angular_velocity)
     if right is not None:
-        right_wall = create_rect(width=width, height=screen_height(),
-                            bottom_left=(screen_width()-right-border*2-width-1, 0),
+        right_wall = create_rect(width=width, height=screen_height()+extra_length,
+                            bottom_left=(screen_width()-right-border*2-width-1, 0-extra_length/2.),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
                             fixed_object=fixed_object, can_rotate=can_rotate,
                             velocity=velocity, angular_velocity=angular_velocity)
     if top is not None:
-        top_wall = create_rect(width=screen_width(), height=width,
-                            bottom_left=(0, screen_height()-top-border*2-width-1),
+        top_wall = create_rect(width=screen_width()+extra_length, height=width,
+                            bottom_left=(0-extra_length/2., screen_height()-top-border*2-width-1),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
                             fixed_object=fixed_object, can_rotate=can_rotate,
                             velocity=velocity, angular_velocity=angular_velocity)
     if bottom is not None:
-        bottom_wall = create_rect(width=screen_width(), height=width,
-                            bottom_left=(0, bottom),
+        bottom_wall = create_rect(width=screen_width()+extra_length, height=width,
+                            bottom_left=(0-extra_length/2., bottom),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
@@ -767,8 +783,13 @@ def update():
         space.step(1.0 / physics_fps)
 
     if _camera_follow.actor:
-        camera.move_to(Vec2d(*_camera_follow.actor.bottomleft())-_camera_follow.offset)
-        camera.turn_to(_camera_follow.actor.angle)
+        ds = (camera.bottom_left + _camera_follow.offset - _camera_follow.actor.bottomleft())
+        if ds.length > _camera_follow.min_distance:
+            ds = ds.normalized() * _camera_follow.speed
+            camera.move_by(ds)
+        d_angle = _camera_follow.actor.angle - camera.angle
+        if abs(d_angle) > _camera_follow.min_angle:
+            camera.turn_to(d_angle * _camera_follow.angle_speed)
 
     # poll for events
     # pygame.QUIT event means the user clicked X to close your window
