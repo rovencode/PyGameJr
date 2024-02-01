@@ -1,365 +1,365 @@
-from typing import Any, Dict, List, Optional, Set, Tuple, Union, Iterable
-from dataclasses import dataclass, fields
-from enum import Enum
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, Iterable, Callable, Sequence, Sized
 import math
-import os
-from collections.abc import Sequence
 import timeit
 
 import pygame
+import pymunk
+from pymunk import pygame_util, Vec2d
 
-from pygamejr import utils
+from pygamejr.common import PyGameColor, AnimationSpec, TextInfo,  \
+                            surface_from_shape, CostumeSpec, Coordinates, \
+                            DrawOptions
 from pygamejr import common
-from pygamejr.common import PyGameColor
-
-class ActorGroup(pygame.sprite.Group):
-    pass
-
-def collide_mask(left:pygame.sprite.Sprite, right:pygame.sprite.Sprite)->bool:
-    """collision detection between two sprites, using masks or rectangles.
-
-    pygame.sprite.collide_mask(SpriteLeft, SpriteRight): bool
-
-    Tests for collision between two sprites. If both sprites have a "mask" attribute,
-    it tests if their bitmasks overlap. If either sprite does not have a mask,
-    it uses rectangle collision detection instead. Sprites must have a "rect" and
-    an optional "mask" attribute.
-
-    """
-    # Check if both sprites have a mask
-    left_has_mask = hasattr(left, 'mask') and left.mask is not None # type: ignore
-    right_has_mask = hasattr(right, 'mask') and right.mask is not None # type: ignore
-
-    # If both have masks, use mask collision detection
-    if left_has_mask and right_has_mask:
-        xoffset = right.rect[0] - left.rect[0] # type: ignore
-        yoffset = right.rect[1] - left.rect[1] # type: ignore
-        return left.mask.overlap(right.mask, (xoffset, yoffset)) # type: ignore
-
-    # Otherwise, use rectangle collision detection
-    else:
-        return left.rect.colliderect(right.rect) # type: ignore
-
-COSTUME_ZERO = "_hidden_"
-
-@dataclass
-class TextInfo:
-    text:str
-    font_name:Optional[str]=None
-    font_size:int=20
-    color:PyGameColor="black"
-    x:int=0
-    y:int=0
-    background_color:Optional[PyGameColor] = None
-
-@dataclass
-class CostumeSpec:
-    name:str    # name of the costume
-    index:int = 0 # index of the image for this costume
-
-@dataclass
-class AnimationSpec:
-    frame_time_s:float=0.1
-    last_frame_time:float=timeit.default_timer()
-    loop:bool=True
-    started:bool=False
 
 
-class Actor(pygame.sprite.Sprite):
-    def __init__(self, x:int, y:int,
-                 angle=0.0,
-                 scale_xy:Tuple[float,float]=(1.0, 1.0),
-                 enable_transparency:bool=True,
-                 physics=common.Physics(enabled=False)):
+class Actor:
+    def __init__(self,
+                 shape:pymunk.Shape,
+                 color:PyGameColor="green",
+                 border=0,
+                 image_paths:Optional[Union[str, Iterable[str]]]=None,
+                 image_scale_xy:Tuple[float,float]=(1., 1.),
+                 image_transparent_color:Optional[PyGameColor]=None,
+                 image_transparency_enabled:bool=False,
+                 image_shape_crop:bool=False,
+                 visible:bool=True,
+                 draw_options:Optional[DrawOptions]=None):
 
-        super().__init__()
+        self.shape = shape
+        self.color = color
+        self.border = border
+        self.draw_options = draw_options
+        self.visible = visible
 
-        self.enable_transparency = enable_transparency
-        self.angle = angle
-        self.scale_xy = scale_xy
         self.animation = AnimationSpec()
-        self.physics = physics
-
-        self.costumes:Dict[str, List[pygame.Surface]] = {
-            COSTUME_ZERO: [pygame.Surface((0, 0))]
-        }
-
-        # initial values
-        self.last_shown_costume = CostumeSpec(COSTUME_ZERO, 0)
-        self.current_costume = self.last_shown_costume
-        self.image = self.get_costume_image(self.current_costume)
-        self.rect:pygame.Rect = pygame.Rect(x, y, 0, 0)
-        self.mask:Optional[pygame.mask.Mask] = None
-
-        # texts to write
         self.texts:Dict[str, TextInfo] = {}
+        self.current_image:Optional[pygame.Surface] = None
 
-    def get_costume_image(self, costume:CostumeSpec)->pygame.Surface:
-        return self.costumes[costume.name][costume.index]
+        self.costumes:Dict[str, CostumeSpec] = {}
+        self.current_costume:Optional[CostumeSpec] = None
 
-    def hide(self):
-        self.set_costume(COSTUME_ZERO)
+        if image_paths:
+            self.add_costume("", image_paths=image_paths,
+                            scale_xy=image_scale_xy,
+                            transparent_color=image_transparent_color,
+                            transparency_enabled=image_transparency_enabled,
+                            shape_crop=image_shape_crop, change=True)
 
-    def is_hidden(self)->bool:
-        return self.current_costume.name == COSTUME_ZERO
-
+    def start_animation(self, loop:bool=True, from_index=0, frame_time_s:float=0.1):
+        self.animation.start(loop, from_index, frame_time_s)
+    def stop_animation(self):
+        self.animation.stop()
     def show(self):
-        self.set_costume(self.last_shown_costume.name, self.last_shown_costume.index)
+        self.visible = True
+    def hide(self):
+        self.visible = False
 
-    def update(self, *args:Any, **kwargs:Any)->None:
-        """Update the sprite's position and image."""
+    @property
+    def velocity(self)->Vec2d:
+        return self.shape.body.velocity
+    @velocity.setter
+    def velocity(self, value:Vec2d):
+        self.shape.body.velocity = value
+    @property
+    def position(self)->Vec2d:
+        return self.shape.body.position
+    @position.setter
+    def position(self, value:Vec2d):
+        self.shape.body.position = value
+    @property
+    def angle(self)->float:
+        return math.degrees(self.shape.body.angle)
+    @angle.setter
+    def angle(self, value:float):
+        self.shape.body.angle = math.radians(value)
+    @property
+    def angular_velocity(self)->float:
+        return math.degrees(self.shape.body.angular_velocity)
+    @angular_velocity.setter
+    def angular_velocity(self, value:float):
+        self.shape.body.angular_velocity = math.radians(value)
+    @property
+    def mass(self)->float:
+        return self.shape.body.mass
+    @mass.setter
+    def mass(self, value:float):
+        self.shape.body.mass = value
+    @property
+    def moment(self)->float:
+        return self.shape.body.moment
+    @moment.setter
+    def moment(self, value:float):
+        self.shape.body.moment = value
+    @property
+    def friction(self)->float:
+        return self.shape.friction
+    @friction.setter
+    def friction(self, value:float):
+        self.shape.friction = value
+    @property
+    def elasticity(self)->float:
+        return self.shape.elasticity
+    @elasticity.setter
+    def elasticity(self, value:float):
+        self.shape.elasticity = value
+    @property
+    def collision_type(self)->int:
+        return self.shape.collision_type
+    @collision_type.setter
+    def collision_type(self, value:int):
+        self.shape.collision_type = value
+    @property
+    def group(self)->int:
+        return self.shape.group
+    @group.setter
+    def group(self, value:int):
+        self.shape.group = value
 
-        # animate the image if needed
-        if self.animation.started:
-            if timeit.default_timer() - self.animation.last_frame_time >= self.animation.frame_time_s:
-                self.current_costume.index += 1
-                if self.current_costume.index >= len(self.costumes[self.current_costume.name]):
-                    if self.animation.loop:
-                        self.current_costume.index = 0
-                    else:
-                        self.current_costume.index = len(self.costumes[self.current_costume.name]) - 1
-                        self.animation.started = False
-                self.animation.last_frame_time = timeit.default_timer()
+    def apply_force(self, force:Coordinates, local_point:Coordinates=(0,0))->None:
+        self.shape.body.apply_force_at_local_point(force, local_point)
+    def apply_impulse(self, impulse:Coordinates, local_point:Coordinates=(0,0))->None:
+        self.shape.body.apply_impulse_at_local_point(impulse, local_point)
+    def apply_torque(self, torque:float)->None:
+        self.shape.body.apply_torque(torque)
+    def apply_local_force(self, force:Coordinates, local_point:Coordinates=(0,0))->None:
+        self.shape.body.apply_force_at_local_point(force, local_point)
+    def apply_local_impulse(self, impulse:Coordinates, local_point:Coordinates=(0,0))->None:
+        self.shape.body.apply_impulse_at_local_point(impulse, local_point)
+    def apply_impulse_torque(self, impulse_torque):
+        """
+        Apply an impulse torque to a PyMunk body.
 
-        # start from current cosume
-        self.image = self.get_costume_image(self.current_costume)
+        :param body: The PyMunk body to which the impulse torque is applied.
+        :param impulse_torque: The amount of impulse torque to apply.
+        """
+        # Angular impulse is change in angular momentum, which is I * Δω
+        # Δω (change in angular velocity) = impulse_torque / moment_of_inertia
+        if self.shape.body.moment.iszero():
+            return
+        angular_velocity_change = impulse_torque / self.shape.body.moment
+        self.shape.body.angular_velocity += angular_velocity_change
 
-        if self.scale_xy != (1.0, 1.0): # scale the image if needed
-            self.image = pygame.transform.scale(self.image,
-                (int(self.image.get_width() * self.scale_xy[0]),
-                    int(self.image.get_height() * self.scale_xy[1])))
-        elif len(self.texts) > 0: # if we need to write texts then we need to make copy of the image
-            self.image = self.image.copy()
-        # else no need to make copy
+    def add_costume(self, name:str, image_paths:Union[str, Iterable[str]],
+                    scale_xy:Tuple[float,float]=(1., 1.),
+                    transparent_color:Optional[PyGameColor]=None,
+                    transparency_enabled:bool=False,
+                    shape_crop:bool=False,
+                    change:bool=False):
 
-        for name, text_info in self.texts.items():
-            font = pygame.font.Font(text_info.font_name, text_info.font_size)
-            surface = font.render(text_info.text, True, text_info.color, text_info.background_color)
-            self.image.blit(surface, (text_info.x, text_info.y))
+        if isinstance(image_paths, str):
+            image_paths = [image_paths] # type: ignore
 
-        # rotate the image if needed
-        if self.angle != 0.0:
-            self.image = pygame.transform.rotate(self.image, self.angle)
-            self.rect = self.image.get_rect(center=self.rect.center)
+        costume = CostumeSpec(name, image_paths,
+                        scale_xy=scale_xy,
+                        transparent_color=transparent_color,
+                        transparency_enabled=transparency_enabled,
+                        shape_crop=shape_crop)
+        self.costumes[name] = costume
 
-    def glide_to(self, xy:Tuple[float,float], speed:float=1.0)->None:
-        """Smoothly move the sprite to a new position."""
-        target_vector = pygame.math.Vector2(xy) - pygame.math.Vector2(self.rect.center)
-        if target_vector.length() > 0:
-            target_vector = target_vector.normalize() * speed
-            new_pos = pygame.math.Vector2(self.rect.center) + target_vector
-            self.rect.center = new_pos.x, new_pos.y # type: ignore
-
-    def distance_to(self, xy:Tuple[float,float])->float:
-        """Return the distance to another sprite."""
-        target_vector = pygame.math.Vector2(xy) - pygame.math.Vector2(self.rect.center)
-        return target_vector.length()
-
-    def start_animation(self, frame_time_s:float=0.1, loop:bool=True)->None:
-        """Cycle through images for current costume"""
-        self.animation = AnimationSpec(frame_time_s, timeit.default_timer(), loop, True)
-
-    def x(self)->int:
-        return self.rect.x
-
-    def y(self)->int:
-        return self.rect.y
-
-    def width(self)->int:
-        return self.rect.width
-
-    def height(self)->int:
-        return self.rect.height
-
-    def stop_animation(self)->None:
-        self.animation.started = False
-
-    def add_costume_image(self, name:str,
-                          image_path_or_surface:Union[str, Iterable[str], pygame.Surface],
-                          transparent_color:Optional[PyGameColor]=None,
-                          scale_xy:Optional[Tuple[float,float]]=None,
-                          change=False) -> pygame.Surface:
-
-        if isinstance(image_path_or_surface, str):
-            image_path_or_surface = [image_path_or_surface] # type: ignore
-
-        surfaces = []
-        if isinstance(image_path_or_surface, Iterable):
-            for image_path in image_path_or_surface:
-                image = common.get_image(image_path)
-                surfaces.append(image if image else pygame.Surface((0, 0)))
-        elif isinstance(image_path_or_surface, pygame.Surface):
-            surfaces.append(image_path_or_surface)
-        else:
-            raise Exception(f"Invalid image_path_or_surface: {image_path_or_surface}")
-
-        if name not in self.costumes:
-            self.costumes[name] = []
-
-        for surface in surfaces:
-            # scale the image if needed
-            if scale_xy is not None and scale_xy != (1.0, 1.0):
-                surface = pygame.transform.scale(surface,
-                    (int(surface.get_width() * scale_xy[0]),
-                        int(surface.get_height() * scale_xy[1])))
-
+        for image_path in image_paths:
+            # load image
+            image = common.get_image(image_path)
             # set transparency
-            if transparent_color is not None:
-                surface.set_colorkey(transparent_color)
+            if costume.transparent_color is not None:
+                image.set_colorkey(costume.transparent_color)
             else:
-                if self.enable_transparency and common.has_transparency(surface):
-                    surface = surface.convert_alpha()
-
-            # add to costumes
-            self.costumes[name].append(surface)
+                if costume.transparency_enabled and common.has_transparency(image):
+                        image = image.convert_alpha()
+            costume.images.append(image)
 
         if change:
-            self.set_costume(name, index=0)
+            self.current_costume = costume
 
-        return surfaces[0]
-
-    def add_costume_rect(self, name:str,
-                         width:int=20, height:int=20,
-                         color:PyGameColor="red", border=0, change=False) -> pygame.Surface:
-
-        rect:pygame.Rect = pygame.Rect(0, 0, width, height)
-
-        surface = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
-        surface.fill((0, 0, 0, 0)) # transparent color
-        pygame.draw.rect(surface, color, rect, width=border)
-
-        return self.add_costume_image(name, surface, change=change)
-
-    def add_costume_ellipse(self, name:str,
-                       width:int=20, height:int=20,
-                    color:PyGameColor="yellow", border=0, change=False) -> pygame.Surface:
-        rect:pygame.Rect = pygame.Rect(0, 0, width, height)
-        surface = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
-        surface.fill((0, 0, 0, 0)) # transparent color
-        pygame.draw.ellipse(surface, color, rect, width=border)
-
-        return self.add_costume_image(name, surface, change=change)
-
-    def add_text(self, name:str, text:str, font_name:Optional[str]=None,
+    def add_text(self, text:str, font_name:Optional[str]=None,
               font_size:int=20,
               color:PyGameColor="black", x:int=0, y:int=0,
               background_color:Optional[PyGameColor]=None,
-              )->None:
+              name:Optional[str]=None)->None:
+        if name is None:
+            name = text
         self.texts[name] = TextInfo(text, font_name, font_size, color, x, y, background_color)
 
     def remove_text(self, name:str)->None:
         if name in self.texts:
             del self.texts[name]
 
-    def append_to_costume(self, name:str, surface:pygame.Surface)->None:
-        self.costumes[name].append(surface)
-
-    def save_current_costume(self, name:str)->None:
-        """Save current rendering as cosume"""
-        self.append_to_costume(name, self.image.copy())
-
-    def add_costume_polygon_any(self, name:str,
-                        points:List[Tuple[int, int]],
-                        color:PyGameColor="green", border=0, change=False) -> pygame.Surface:
-        bounding_rect = common.get_bounding_rect(points)
-
-        # Find the minimum x (left) and y (top) values
-        min_x = min(point[0] for point in points)
-        min_y = min(point[1] for point in points)
-
-        # Create a new polygon where each point is adjusted by the min_x and min_y
-        relative_points = [(x - min_x, y - min_y) for x, y in points]
-
-        surface = pygame.Surface(bounding_rect.size, pygame.SRCALPHA)
-        surface.fill((0, 0, 0, 0)) # transparent color
-        pygame.draw.polygon(surface, color, relative_points, width=border)
-
-        return self.add_costume_image(name, surface, change=change)
-
-    def add_costume_polygon(self, name:str,
-                    sides:int, width:int=20, height:int=20,
-                    color:PyGameColor="green", border=0, change=False) -> pygame.Surface:
-
-        points = common.polygon_points(sides, 0, 0, width, height)
-        return self.add_costume_polygon_any(name, points, color, border, change=change)
-
-    def set_costume(self, name:str, index=0)->None:
-        if self.current_costume == CostumeSpec(name, index):
-            return
-
-        # only record non-hidden costumes
-        if self.current_costume.name != COSTUME_ZERO:
-            self.last_shown_costume = self.current_costume
-
-        self.current_costume = CostumeSpec(name, index)
-        self.image = self.get_costume_image(self.current_costume)
-        self.rect = self.image.get_rect(topleft=self.rect.topleft)
-
-        # create masks
-        if self.image.get_colorkey() is not None:
-            self.mask = pygame.mask.from_surface(self.image)
-        elif self.enable_transparency and common.has_transparency(self.image):
-                self.mask = pygame.mask.from_surface(self.image, threshold=1)
+    def set_cosume(self, name:Optional[str])->None:
+        if name is None:
+            self.current_costume = None
         else:
-            self.mask:Optional[pygame.mask.Mask] = None
+            self.current_costume = self.costumes[name]
 
-    def remove_costume(self, name:str, index:Optional[int])->None:
+    def glide_to(self, xy:Coordinates, speed:float=1.0)->None:
+        """Smoothly move the body to a new position."""
+        target_vector = Vec2d(*xy) - self.shape.body.position
+        if target_vector.length > 0:
+            target_vector = target_vector.normalized() * speed
+            self.shape.body.position = self.shape.body.position + target_vector
+
+    def move_by(self, xy:Coordinates)->None:
+        """Move the body by a vector."""
+        self.shape.body.position = self.shape.body.position + Vec2d(*xy)
+    def move_to(self, xy:Coordinates)->None:
+        """Move the body to a new position."""
+        self.shape.body.position = Vec2d(*xy)
+
+    def turn_by(self, angle:float)->None:
+        """Turn the body by an angle."""
+        self.shape.body.angle += math.radians(angle)
+
+    def turn_to(self, angle:float)->None:
+        """Turn the body to an angle."""
+        self.shape.body.angle = math.radians(angle)
+
+    def turn_towards(self, xy:Coordinates)->None:
+        """Turn the body towards a point."""
+        target_vector = Vec2d(*xy) - self.shape.body.position
+        self.shape.body.angle = target_vector.angle
+
+    def touches_at(self, point:Coordinates)->bool:
+        query_result = self.shape.point_query(point)
+        return query_result.distance <= 0
+
+
+    def touches(self, other:Optional[Union['Actor', Sequence['Actor']]])->Union[List['Actor'], List[pymunk.ShapeQueryInfo]]:
+        if self.shape.space is None:
+            return []
+
+        colliding_shapes = self.shape.space.shape_query(self.shape)
+
+        if other  is None:
+            other = []
+        elif not isinstance(other, Sequence):
+            other = [other]
+
+        if len(other) == 0:
+            return colliding_shapes
+        else:
+            other_shapes = {o.shape:o for o in other}
+            return [other_shapes[s.shape] for s in colliding_shapes if s.shape in other_shapes]
+
+    def distance_to(self, xy:Coordinates)->float:
+        """Return the distance to another sprite."""
+        target_vector = Vec2d(*xy) - self.shape.body.position
+        return target_vector.length
+
+    def x(self)->float:
+        return self.shape.body.position.x
+    def y(self)->float:
+        return self.shape.body.position.y
+    def center(self)->Tuple[float, float]:
+        return self.x(), self.y()
+    def width(self)->float:
+        self.shape.cache_bb()
+        return self.shape.bb.right - self.shape.bb.left
+    def height(self)->float:
+        self.shape.cache_bb()
+        return self.shape.bb.top - self.shape.bb.bottom
+    def topleft(self)->Tuple[float, float]:
+        self.shape.cache_bb()
+        return self.shape.bb.left, self.shape.bb.top
+    def topright(self)->Tuple[float, float]:
+        self.shape.cache_bb()
+        return self.shape.bb.right, self.shape.bb.top
+    def bottomleft(self)->Tuple[float, float]:
+        self.shape.cache_bb()
+        return self.shape.bb.left, self.shape.bb.bottom
+    def bottomright(self)->Tuple[float, float]:
+        self.shape.cache_bb()
+        return self.shape.bb.right, self.shape.bb.bottom
+    def top(self)->float:
+        self.shape.cache_bb()
+        return self.shape.bb.top
+    def bottom(self)->float:
+        self.shape.cache_bb()
+        return self.shape.bb.bottom
+    def left(self)->float:
+        self.shape.cache_bb()
+        return self.shape.bb.left
+    def right(self)->float:
+        self.shape.cache_bb()
+        return self.shape.bb.right
+    def rect(self)->Tuple[float, float, float, float]:
+        self.shape.cache_bb()
+        return (self.shape.bb.left, self.shape.bb.top, self.width(), self.height())
+    def is_hidden(self)->bool:
+        return not self.visible
+
+
+    def remove_costume(self, name:str)->None:
         if name in self.costumes:
-            if index is None:
-                del self.costumes[name]
+            del self.costumes[name]
+            if self.current_costume is not None and self.current_costume.name == name:
+                self.set_cosume(None)
+
+    def update(self)->None:
+        if self.current_costume is not None:
+            if self.animation.started:
+                if timeit.default_timer() - self.animation.last_frame_time >= self.animation.frame_time_s:
+                    self.animation.image_index += 1
+                    self.animation.last_frame_time = timeit.default_timer()
+                    if self.animation.image_index >= len(self.current_costume.images):
+                        if self.animation.loop:
+                            self.animation.image_index = 0
+                        else:
+                            self.animation.image_index = len(self.current_costume.images)-1
+                            self.animation.stop()
+            self.current_image = self.current_costume.images[self.animation.image_index]
+            # scale image
+            if self.current_costume.scale_xy != (1., 1.):
+                self.current_image = pygame.transform.scale(
+                    self.current_image,(
+                        self.current_image.get_width()*self.current_costume.scale_xy[0], \
+                        self.current_image.get_height()*self.current_costume.scale_xy[1]
+                    ))
             else:
-                del self.costumes[name][index]
+                self.current_image = self.current_image.copy()
 
-    def move_by(self, dx:int, dy:int)->pygame.Rect:
-        self.rect.move_ip(dx, dy)
-        return self.rect
+    def _recreate_shape(self, new_width, new_height)->None:
+        self.shape.cache_bb()
+        width, height = self.width(), self.height()
+        body, space, offset = self.shape.body, self.shape.space, self.shape.offset
+        assert space is not None
+        space.remove(self.shape)
+        if isinstance(self.shape, pymunk.Circle):
+            self.shape = pymunk.Circle(body, max(new_width, new_height)/2., offset)
+        elif isinstance(self.shape, pymunk.Poly):
+            vertices, radius = self.shape.get_vertices(), self.shape.radius
+            x_scale, y_scale = new_width/width, new_height/height
+            vertices = [(v.x*x_scale, v.y*y_scale) for v in vertices]
+            self.shape = pymunk.Poly(body, vertices, radius=radius)
+        elif isinstance(self.shape, pymunk.Segment):
+            a, b, radius = self.shape.a, self.shape.b, self.shape.radius
+            a = (a.x*new_width/width, a.y*new_height/height)
+            b = (b.x*new_width/width, b.y*new_height/height)
+            self.shape = pymunk.Segment(body, a, b, radius)
+        else:
+            raise ValueError(f"Unknown shape type {self.shape}")
+        space.add(self.shape)
 
-    def move_to(self, x:int, y:int)->pygame.Rect:
-        self.rect.move_ip(x-self.rect.x, y-self.rect.y)
-        return self.rect
 
-    def turn(self, angle:float)->None:
-        """ Rotate a sprite and keep its center. """
-        self.angle = angle
+    def fit_to_image(self)->None:
+        if self.current_costume is not None and len(self.current_costume.images):
+            new_width, new_height = self.current_costume.images[0].get_size()
+            if isinstance(self.shape, pymunk.Circle):
+                self.shape.unsafe_set_radius(max(new_width, new_height)/2.)
+            elif isinstance(self.shape, pymunk.Poly):
+                vertices = self.shape.get_vertices()
+                x_scale, y_scale = new_width/self.width(), new_height/self.height()
+                vertices = [(v.x*x_scale, v.y*y_scale) for v in vertices]
+                self.shape.unsafe_set_vertices(vertices)
+            elif isinstance(self.shape, pymunk.Segment):
+                a, b = self.shape.a, self.shape.b
+                a = (a.x*new_width/self.width(), a.y*new_height/self.height())
+                b = (b.x*new_width/self.width(), b.y*new_height/self.height())
+                self.shape.unsafe_set_endpoints(a, b)
 
-    def angle_to(self, xy: Tuple[float, float], speed:float=0.1) -> float:
-        # Calculate angle to target
-        x_diff = xy[0] - self.rect.centerx
-        y_diff = xy[1] - self.rect.centery
-        target_angle = math.degrees(math.atan2(-y_diff, x_diff))
-
-        # Adjust the target angle relative to the current angle
-        current_angle = self.angle  # Assuming self.angle is maintained elsewhere in your code
-
-        # Calculate the difference in angles and adjust for wrapping
-        angle_diff = target_angle - current_angle
-        if angle_diff > 180:
-            angle_diff -= 360
-        elif angle_diff < -180:
-            angle_diff += 360
-
-        # Smoothly update the angle
-        # Here, 'speed' is a factor determining how quickly the angle updates; you can adjust this
-        new_angle = current_angle + angle_diff * speed
-
-        return new_angle
-
-    def turn_to(self, xy:Tuple[float,float], speed:float=0.1)->None:
-        self.angle = self.angle_to(xy, speed)
-
-    def touches(self, other:Union['Actor', ActorGroup, Tuple[float, float]])->Sequence['Actor']:
-        if isinstance(other, Actor):
-            if pygame.sprite.collide_mask(self, other):
-                return [other]
-            else:
-                return []
-        elif isinstance(other, ActorGroup) or isinstance(other, list):
-            return pygame.sprite.spritecollide(self, other, False, collide_mask) # type: ignore
-        elif isinstance(other, tuple):
-            if self.rect.collidepoint(other):
-                return [self]
-            else:
-                return []
+    def fit_image(self)->None:
+        if self.current_costume is not None and len(self.current_costume.images):
+            new_width, new_height = self.width(), self.height()
+            old_width, old_height = self.current_costume.images[0].get_size()
+            if new_width != old_width or new_height != old_height:
+                self.current_costume.scale_xy = (new_width/old_width, new_height/old_height)
 
     def on_keypress(self, keys:Set[str]):
         pass
@@ -384,3 +384,16 @@ class Actor(pygame.sprite.Sprite):
 
     def on_mousewheel(self, pos:Tuple[int, int], y:int):
         pass
+
+    def draw(self, screen:pygame.Surface):
+        if self.visible:
+            surface, center = surface_from_shape(shape=self.shape,
+                                         texts=self.texts,
+                                         color=self.color,
+                                         border=self.border,
+                                         draw_options=self.draw_options,
+                                         image=self.current_image,
+                                         image_shape_crop=self.current_costume.shape_crop \
+                                             if self.current_costume else True)
+            pos = Vec2d(*pygame_util.to_pygame(self.shape.body.position, screen))
+            screen.blit(surface, pos-center)
