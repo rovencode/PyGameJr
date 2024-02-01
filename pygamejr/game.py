@@ -644,8 +644,8 @@ def start(screen_title:str=_screen_props.title,
     draw_options = pygame_util.DrawOptions(screen)
 
     # create No One actor to handle global events, put it offscreen
-    noone = create_rect(width=screen_width, height=screen_height,
-                        color=(0, 0, 0, 0), bottom_left=(0,0))
+    noone = create_rect(width=1, height=1,
+                        color=(0, 0, 0, 0), bottom_left=(-1000,-1000), visible=False)
     # this body doesn't collide with anything
     noone.shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
 
@@ -783,6 +783,9 @@ def update():
         actor.update()
     for actor in _actors:
         actor.draw(screen)
+
+    # draw texts from noone
+    common.draw_texts(screen, noone.texts)
 
     if show_mouse_coordinates:
         common.print_to(screen, f'{mouse_xy()}')

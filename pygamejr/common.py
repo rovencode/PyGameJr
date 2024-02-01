@@ -274,13 +274,16 @@ def surface_from_shape(shape:pymunk.Shape,
         pygame.draw.circle(surface, draw_options.center_color,
                            center, draw_options.center_radius, 0)
 
+    draw_texts(surface, texts)
+
+    return surface, center
+
+def draw_texts(surface:pygame.Surface, texts:Dict[str, TextInfo]):
     for name, text_info in texts.items():
         font = pygame.font.Font(text_info.font_name, text_info.font_size)
         text_surface = font.render(text_info.text, True, text_info.color, text_info.background_color)
         pos = tuple(text_info.pos)
         surface.blit(text_surface, pos)
-
-    return surface, center
 
 def print_to(surface:pygame.Surface, text:str, topleft:Coordinates=Vec2d.zero(),
              font_name:Optional[str]=None, font_size:int=20,
