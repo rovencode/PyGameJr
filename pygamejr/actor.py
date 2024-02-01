@@ -171,16 +171,19 @@ class Actor:
         if change:
             self.current_costume = costume
 
-    def add_text(self, text:str, font_name:Optional[str]=None,
-              font_size:int=20,
-              color:PyGameColor="black", x:int=0, y:int=0,
+    def add_text(self, text:str, pos:Coordinates=(0,0),
+              font_name:Optional[str]=None, font_size:int=20,
+              color:PyGameColor="black",
               background_color:Optional[PyGameColor]=None,
               name:Optional[str]=None)->None:
         if name is None:
             name = text
-        self.texts[name] = TextInfo(text, font_name, font_size, color, x, y, background_color)
+        self.texts[name] = TextInfo(text=text, pos=pos,
+                                    font_name=font_name, font_size=font_size,
+                                    color=color, background_color=background_color)
 
-    def remove_text(self, name:str)->None:
+    def remove_text(self, text:str, name:Optional[str]=None)->None:
+        name = name or text
         if name in self.texts:
             del self.texts[name]
 
@@ -365,26 +368,33 @@ class Actor:
     def on_keypress(self, keys:Set[str]):
         pass
 
-    def on_keydown(self, key:str):
+    def on_keydown(self, key_name:str, key_code:int, mod:int, scancode:int, window:int, unicode:str):
         pass
 
-    def on_keyup(self, key:str):
+    def on_keyup(self, key_name:str, key_code:int, mod:int, scancode:int, window:int):
         pass
 
-    def on_mousebutton(self, pos:Tuple[int, int]):
+    def on_mousebutton(self, buttons:Set[str]):
         pass
 
-    def on_mousedown(self, pos:Tuple[int, int], button:int, touch:Optional[int]):
+    def on_mousedown(self, pos:Tuple[int, int], button:str, button_num:int,
+                     is_touch:bool, window_id:int):
         pass
 
-    def on_mouseup(self, pos:Tuple[int, int], button:int, touch:Optional[int]):
+    def on_mouseup(self, pos:Tuple[int, int], button:str, button_num:int,
+                   is_touch:bool, window_id:int):
         pass
 
-    def on_mousemove(self, pos:Tuple[int, int]):
+    def on_mousemove(self, pos:Tuple[int, int], rel:Tuple[int, int], buttons:Sequence[bool],
+                     is_touch:bool, window_id:int):
         pass
 
-    def on_mousewheel(self, pos:Tuple[int, int], y:int):
+    def on_mousewheel(self, horizotal_scroll:float, vertical_scroll:float, is_flipped:bool,
+                      is_touch:bool, window_id:int):
         pass
+
+    def on_quit(self)->bool:
+        return False # continue quiting
 
     def draw(self, screen:pygame.Surface):
         if self.visible:

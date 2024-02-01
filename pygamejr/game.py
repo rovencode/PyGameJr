@@ -16,7 +16,6 @@ from pygamejr.common import PyGameColor, DrawOptions, Coordinates, Vector2, Imag
 
 TRANSPARENT_COLOR = (0, 0, 0, 0)
 
-_running = False # is game currently running?
 show_mouse_coordinates = False # show mouse coordinates in console?
 
 clock = pygame.time.Clock() # game clock
@@ -30,14 +29,19 @@ pygame_util.positive_y_is_up = True
 pygame.init()
 space = pymunk.Space() # physics space
 
+down_keys:Set[str] = set()   # keys currently down
+down_mousbuttons:Set[str] = set()  # mouse buttons currently down
+
+noone:Actor = None # type: ignore
+
+# private variables
 _actors = [] # list of all actors
-_screen_walls = [] # list of all wall
-down_keys = set()   # keys currently down
-down_mousbuttons = set()  # mouse buttons currently down
-
+# for each handler type, keep list of actors that have that handler
+_actors_handlers:Dict[int, Set[Actor]] = {}
+_running = False # is game currently running?
 _default_poly_radius = 1
-
 _sounds:Dict[str, pygame.mixer.Sound] = {} # sounds
+
 
 @dataclass
 class ScreenProps:
@@ -63,6 +67,54 @@ def keep_running():
     while _running:
         update()
 
+def screen_top()->int:
+    return _screen_props.height
+def screen_bottom()->int:
+    return 0
+def screen_left()->int:
+    return 0
+def screen_right()->int:
+    return _screen_props.width
+def screen_center()->Tuple[float, float]:
+    return _screen_props.width//2., _screen_props.height//2.
+
+
+def add_text(text:str, at:Optional[Coordinates]=None,
+             font_name:Optional[str]=None, font_size:int=20,
+             color:PyGameColor="black", background_color:Optional[PyGameColor]=None,
+             name:Optional[str]=None):
+    """Print text at position"""
+    assert screen is not None, "screen is None"
+    at = at if at is not None else screen_center()
+    noone.add_text(text=text, pos=at, font_name=font_name, font_size=font_size,
+                   color=color, background_color=background_color, name=name)
+
+def remove_text(text:str, name:Optional[str]=None):
+    """Remove text from screen"""
+    noone.remove_text(text=text, name=name)
+
+def event_to_code(name:str)->int:
+    if name == "on_keydown":
+        return pygame.KEYDOWN
+    elif name == "on_keyup":
+        return pygame.KEYUP
+    elif name == "on_keypress":
+        return pygame.KEYUP
+    elif name == "on_mousedown":
+        return pygame.MOUSEBUTTONDOWN
+    elif name == "on_mouseup":
+        return pygame.MOUSEBUTTONUP
+    elif name == "on_mousebutton":
+        return pygame.MOUSEBUTTONUP
+    elif name == "on_mousemove":
+        return pygame.MOUSEMOTION
+    elif name == "on_mousewheel":
+        return pygame.MOUSEWHEEL
+    elif name == "on_quit":
+        return pygame.QUIT
+    else:
+        raise ValueError(f"Unknown event name: {name}")
+
 def handle(event_method:Callable, handler:Callable)->None:
     """
     Assign a handler to a given event method.
@@ -79,12 +131,22 @@ def handle(event_method:Callable, handler:Callable)->None:
     # Get the name of the method
     method_name = event_method.__name__
 
+    # register this actor for this event
+    event_code = event_to_code(method_name)
+    global _actors_handlers
+    if event_code not in _actors_handlers:
+        _actors_handlers[event_code] = set()
+    _actors_handlers[event_code].add(self)
+
     # Set the handler to replace the original event method, making sure it's bound
     setattr(self, method_name, handler.__get__(self, type(self)))
 
 
+# TODO: replace asserts with exceptions
+
 def create_image(image_path:Union[str, Iterable[str]],
-                bottom_left:Coordinates=(0, 0),
+                bottom_left:Optional[Coordinates]=None,
+                center:Optional[Coordinates]=None,
                 angle=0.0, border=0,
                 transparent_color:Optional[PyGameColor]=None,
                 scale_xy:Tuple[float,float]=(1., 1.),
@@ -100,11 +162,20 @@ def create_image(image_path:Union[str, Iterable[str]],
         image_path = [image_path]
     else:
         image_path = list(image_path)
+    assert len(image_path) > 0, "At least provide one image path."
     image = common.get_image(image_path[0])
 
     width, height = image.get_size()
     if scale_xy is not None:
         width, height = width*scale_xy[0], height*scale_xy[1]
+
+    assert not(bottom_left is not None and center is not None), "Don't specify both bottom_left and center, only one or the other."
+    if center is not None:
+        bottom_left = Vec2d(center[0] - width/2., center[1] - height/2.)
+    elif bottom_left is not None:
+        bottom_left = Vec2d(*bottom_left)
+    else:
+        bottom_left = Vec2d(0, 0)
 
     body_type = pymunk.Body.KINEMATIC if density == 0.0 else pymunk.Body.DYNAMIC
     if fixed_object:
@@ -145,7 +216,8 @@ def create_image(image_path:Union[str, Iterable[str]],
 def create_rect(width:int=20, height:int=20,
                 color:PyGameColor="red",
                 image_path:Union[str, Iterable[str]]=[],
-                bottom_left:Coordinates=(0, 0),
+                bottom_left:Optional[Coordinates]=None,
+                center:Optional[Coordinates]=None,
                 angle=0.0, border=0,
                 transparent_color:Optional[PyGameColor]=None,
                 scale_xy:Tuple[float,float]=(1., 1.),
@@ -160,6 +232,14 @@ def create_rect(width:int=20, height:int=20,
     body_type = pymunk.Body.KINEMATIC if density == 0.0 else pymunk.Body.DYNAMIC
     if fixed_object:
         body_type = pymunk.Body.STATIC
+
+    assert not(bottom_left is not None and center is not None), "Don't specify both bottom_left and center, only one or the other."
+    if center is not None:
+        bottom_left = Vec2d(center[0] - width/2., center[1] - height/2.)
+    elif bottom_left is not None:
+        bottom_left = Vec2d(*bottom_left)
+    else:
+        bottom_left = Vec2d(0, 0)
 
     # shape center is at (0,0)
     r_bottom_left = Vec2d(-width/2., -height/2.)
@@ -199,7 +279,8 @@ def create_rect(width:int=20, height:int=20,
 def create_circle(radius:float=20,
                 color:PyGameColor="red",
                 image_path:Union[str, Iterable[str]]=[],
-                center:Coordinates=(0, 0),
+                bottom_left:Optional[Coordinates]=None,
+                center:Optional[Coordinates]=None,
                 angle=0.0, border=0,
                 transparent_color:Optional[PyGameColor]=None,
                 scale_xy:Tuple[float,float]=(1., 1.),
@@ -214,6 +295,15 @@ def create_circle(radius:float=20,
     body_type = pymunk.Body.KINEMATIC if density == 0.0 else pymunk.Body.DYNAMIC
     if fixed_object:
         body_type = pymunk.Body.STATIC
+
+    assert not(bottom_left is not None and center is not None), "Don't specify both bottom_left and center, only one or the other."
+    if bottom_left is not None:
+        bottom_left = Vec2d(*bottom_left)
+        center = (bottom_left[0] + radius, bottom_left[1] + radius)
+    elif center is not None:
+        center = Vec2d(*center)
+    else:
+        center = Vec2d(0, 0)
 
     body = pymunk.Body(body_type=body_type)
     body.position = center
@@ -248,7 +338,8 @@ def create_circle(radius:float=20,
 def create_ellipse(width:int=20, height:int=20,
                 color:PyGameColor="red",
                 image_path:Union[str, Iterable[str]]=[],
-                bottom_left:Coordinates=(0, 0),
+                bottom_left:Optional[Coordinates]=None,
+                center:Optional[Coordinates]=None,
                 angle=0.0, border=0,
                 transparent_color:Optional[PyGameColor]=None,
                 scale_xy:Tuple[float,float]=(1., 1.),
@@ -263,6 +354,14 @@ def create_ellipse(width:int=20, height:int=20,
     body_type = pymunk.Body.KINEMATIC if density == 0.0 else pymunk.Body.DYNAMIC
     if fixed_object:
         body_type = pymunk.Body.STATIC
+
+    assert not(bottom_left is not None and center is not None), "Don't specify both bottom_left and center, only one or the other."
+    if center is not None:
+        bottom_left = Vec2d(center[0] - width/2., center[1] - height/2.)
+    elif bottom_left is not None:
+        bottom_left = Vec2d(*bottom_left)
+    else:
+        bottom_left = Vec2d(0, 0)
 
     body = pymunk.Body(body_type=body_type)
     body.position = bottom_left[0] + width/2., bottom_left[1] + height/2.
@@ -300,7 +399,8 @@ def create_ellipse(width:int=20, height:int=20,
 def create_polygon_any(points:Sequence[Coordinates],
                 color:PyGameColor="red",
                 image_path:Union[str, Iterable[str]]=[],
-                bottom_left:Coordinates=(0, 0),
+                bottom_left:Optional[Coordinates]=None,
+                center:Optional[Coordinates]=None,
                 angle=0.0, border=0,
                 transparent_color:Optional[PyGameColor]=None,
                 scale_xy:Tuple[float,float]=(1., 1.),
@@ -326,9 +426,17 @@ def create_polygon_any(points:Sequence[Coordinates],
     r = common.get_bounding_rect(points)
     r_bottom_left = Vec2d(r[2], r[3])
 
+    assert not(bottom_left is not None and center is not None), "Don't specify both bottom_left and center, only one or the other."
+    if bottom_left is not None:
+        bottom_left = Vec2d(*bottom_left)
+        center = bottom_left - r_bottom_left
+    elif center is not None:
+        center = Vec2d(*center)
+    else:
+        center = Vec2d(0, 0)
+
     body = pymunk.Body(body_type=body_type)
-    offset = Vec2d(*bottom_left) - r_bottom_left
-    body.position = offset # centroid is now zero so no need to add to offset
+    body.position = center
     body.angle = angle
     body.velocity = Vec2d(*velocity)
     body.angular_velocity = math.radians(angular_velocity)
@@ -360,7 +468,8 @@ def create_polygon_any(points:Sequence[Coordinates],
 def create_polygon(sides:int, width:int=20, height:int=20,
                 color:PyGameColor="red",
                 image_path:Union[str, Iterable[str]]=[],
-                bottom_left:Coordinates=(0, 0),
+                bottom_left:Optional[Coordinates]=None,
+                center:Optional[Coordinates]=None,
                 angle=0.0, border=0,
                 transparent_color:Optional[PyGameColor]=None,
                 scale_xy:Tuple[float,float]=(1., 1.),
@@ -378,6 +487,7 @@ def create_polygon(sides:int, width:int=20, height:int=20,
                 color=color,
                 image_path=image_path,
                 bottom_left=bottom_left,
+                center=center,
                 angle=angle, border=border,
                 transparent_color=transparent_color,
                 scale_xy=scale_xy,
@@ -399,7 +509,6 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                         density=1.0, elasticity=1.0, friction=0.0,
                         fixed_object=True, can_rotate=False,
                         velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> None:
-    global _screen_walls
 
     left = (0. if left else None) if isinstance(left, bool) else left
     right = (0. if right else None) if isinstance(right, bool) else right
@@ -414,7 +523,6 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             density=density, elasticity=elasticity, friction=friction,
                             fixed_object=fixed_object, can_rotate=can_rotate,
                             velocity=velocity, angular_velocity=angular_velocity)
-        _screen_walls.append(actor)
     if right is not None:
         actor = create_rect(width=1, height=screen_height(),
                             bottom_left=(screen_width()-right, 0),
@@ -423,7 +531,6 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             density=density, elasticity=elasticity, friction=friction,
                             fixed_object=fixed_object, can_rotate=can_rotate,
                             velocity=velocity, angular_velocity=angular_velocity)
-        _screen_walls.append(actor)
     if top is not None:
         actor = create_rect(width=screen_width(), height=1,
                             bottom_left=(0, screen_height()-top),
@@ -432,7 +539,6 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             density=density, elasticity=elasticity, friction=friction,
                             fixed_object=fixed_object, can_rotate=can_rotate,
                             velocity=velocity, angular_velocity=angular_velocity)
-        _screen_walls.append(actor)
     if bottom is not None:
         actor = create_rect(width=screen_width(), height=1,
                             bottom_left=(0, bottom),
@@ -441,7 +547,6 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             density=density, elasticity=elasticity, friction=friction,
                             fixed_object=fixed_object, can_rotate=can_rotate,
                             velocity=velocity, angular_velocity=angular_velocity)
-        _screen_walls.append(actor)
 
 
 def start(screen_title:str=_screen_props.title,
@@ -452,7 +557,7 @@ def start(screen_title:str=_screen_props.title,
           screen_fps=_screen_props.fps,
           gravity:Optional[Union[float, Vector2]]=None):
 
-    global  _running, screen, draw_options
+    global  _running, screen, draw_options, noone
 
     set_screen_size(screen_width, screen_height)
     set_screen_color(screen_color)
@@ -469,6 +574,10 @@ def start(screen_title:str=_screen_props.title,
 
     assert screen is not None, "screen is None"
     draw_options = pygame_util.DrawOptions(screen)
+
+    # create No One actor to handle global events, put it offscreen
+    noone = create_rect(width=screen_width, height=screen_height,
+                        color=(0, 0, 0, 0), bottom_left=(0,0))
 
 def screen_size()->Tuple[int, int]:
     return _screen_props.width, _screen_props.height
@@ -510,8 +619,19 @@ def set_screen_title(title:str):
 def on_frame():
     pass
 
+def mouse_button_name(button:int)->str:
+    if button == 1:
+        return "left"
+    elif button == 2:
+        return "middle"
+    elif button == 3:
+        return "right"
+    else:
+        return str(button)
+
 def update():
-    global _running
+    global _running, screen
+    assert screen is not None, "screen is None"
 
     if not _running:
         return
@@ -522,38 +642,58 @@ def update():
 
     # poll for events
     # pygame.QUIT event means the user clicked X to close your window
+    # TODO: optimize this by registering actors for events instead of looping through all actors
+    # TODO: ability to remove handler
+    # TODO: ability to remove actor
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            end()
+            quit = True
+            for actor in _actors_handlers.get(pygame.QUIT, []):
+                quit = quit or actor.on_quit()
+            if quit:
+                end()
         if event.type == pygame.KEYDOWN:
             key_name = pygame.key.name(event.key)
             down_keys.add(key_name)
-            for actor in _actors:
-                actor.on_keydown(key_name)
+            for actor in _actors_handlers.get(pygame.KEYDOWN, []):
+                actor.on_keydown(key_name, event.key,
+                                 event.mod, event.unicode,
+                                 event.scancode, event.window)
         if event.type == pygame.KEYUP:
             key_name = pygame.key.name(event.key)
             down_keys.remove(key_name)
-            for actor in _actors:
-                actor.on_keyup(key_name)
+            for actor in _actors_handlers.get(pygame.KEYUP, []):
+                actor.on_keyup(key_name, event.key,
+                                 event.mod,
+                                 event.scancode, event.window)
         if event.type == pygame.MOUSEBUTTONDOWN:
-            down_mousbuttons.add(event.button)
-            for actor in _actors:
-                actor.on_mousedown(event.pos, event.button, event.touch)
+            button_name = mouse_button_name(event.button)
+            down_mousbuttons.add(button_name)
+            pos = pygame_util.from_pygame(Vec2d(*event.pos), screen)
+            for actor in _actors_handlers.get(pygame.MOUSEBUTTONDOWN, []):
+                actor.on_mousedown(pos, button_name, event.button,
+                                   event.touch, event.window)
         if event.type == pygame.MOUSEBUTTONUP:
-            down_mousbuttons.remove(event.button)
-            for actor in _actors:
-                actor.on_mouseup(event.pos, event.button, event.touch)
+            button_name = mouse_button_name(event.button)
+            down_mousbuttons.remove(button_name)
+            pos = pygame_util.from_pygame(Vec2d(*event.pos), screen)
+            for actor in _actors_handlers.get(pygame.MOUSEBUTTONUP, []):
+                actor.on_mouseup(pos, button_name, event.button,
+                                 event.touch, event.window)
         if event.type == pygame.MOUSEMOTION:
-            for actor in _actors:
-                actor.on_mousemove(event.pos)
+            pos = pygame_util.from_pygame(Vec2d(*event.pos), screen)
+            for actor in _actors_handlers.get(pygame.MOUSEMOTION, []):
+                actor.on_mousemove(pos, event.rel, event.buttons,
+                                   event.touch, event.window)
         if event.type == pygame.MOUSEWHEEL:
-            for actor in _actors:
-                actor.on_mousewheel(event.pos, event.y)
+            for actor in _actors_handlers.get(pygame.MOUSEWHEEL, []):
+                actor.on_mousewheel(event.x, event.y, event.flipped,
+                                    event.touch, event.window)
     if down_keys:
-        for actor in _actors:
+        for actor in _actors_handlers.get(pygame.KEYUP, []):
             actor.on_keypress(down_keys)
     if down_mousbuttons:
-        for actor in _actors:
+        for actor in _actors_handlers.get(pygame.MOUSEBUTTONUP, []):
             actor.on_mousebutton(down_mousbuttons)
 
     # call on_frame() to update your game state

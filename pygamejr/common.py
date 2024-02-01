@@ -125,11 +125,10 @@ class ImagePaintMode(Enum):
 @dataclass
 class TextInfo:
     text:str
+    pos:Coordinates=(0, 0)
     font_name:Optional[str]=None
     font_size:int=20
     color:PyGameColor="black"
-    x:int=0
-    y:int=0
     background_color:Optional[PyGameColor] = None
 
 @dataclass
@@ -279,7 +278,8 @@ def surface_from_shape(shape:pymunk.Shape,
     for name, text_info in texts.items():
         font = pygame.font.Font(text_info.font_name, text_info.font_size)
         text_surface = font.render(text_info.text, True, text_info.color, text_info.background_color)
-        surface.blit(text_surface, (text_info.x, text_info.y))
+        pos = tuple(text_info.pos)
+        surface.blit(text_surface, pos)
 
     return surface, center
 
