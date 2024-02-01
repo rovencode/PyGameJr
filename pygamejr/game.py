@@ -39,8 +39,14 @@ down_mousbuttons:Set[str] = set()  # mouse buttons currently down
 
 noone:Actor = None # type: ignore
 
+@dataclass
+class CameraFollow:
+    actor:Optional['Actor']=None
+    offset:Vec2d=Vec2d.zero()
+
 # private variables
 _actors:Set[Actor] = set() # list of all actors
+_camera_follow:CameraFollow = CameraFollow() # actor to follow with camera
 # for each handler type, keep list of actors that have that handler
 _actors_handlers:Dict[int, Set[Actor]] = {}
 _running = False # is game currently running?
@@ -180,6 +186,11 @@ def handle(event_method:Callable, handler:Callable)->None:
 
 
 # TODO: replace asserts with exceptions
+
+def camera_follow(actor:Optional[Actor]=None):
+    global _camera_follow
+    _camera_follow.actor = actor
+    _camera_follow.offset = Vec2d(*actor.bottomleft()) if actor else Vec2d.zero()
 
 def create_image(image_path:Union[str, Iterable[str]],
                 bottom_left:Optional[Coordinates]=None,
@@ -599,7 +610,8 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                         bottom:Optional[Union[float, bool]]=None,
                         color:PyGameColor=(0, 0, 0, 0),
                         width:int=1, border=0, transparency_enabled:bool=False,
-                        density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None) -> None:
+                        density:Optional[float]=None, elasticity:Optional[float]=None,
+                        friction:Optional[float]=None) -> Tuple[Optional[Actor], Optional[Actor], Optional[Actor], Optional[Actor]]:
 
     fixed_object=True
     can_rotate=True
@@ -611,8 +623,9 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
     top = (0. if top else None) if isinstance(top, bool) else top
     bottom = (0. if bottom else None) if isinstance(bottom, bool) else bottom
 
+    left_wall, right_wall, top_wall, bottom_wall = None, None, None, None
     if left is not None:
-        actor = create_rect(width=width, height=screen_height(),
+        left_wall = create_rect(width=width, height=screen_height(),
                             bottom_left=(left, 0),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
@@ -620,7 +633,7 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             fixed_object=fixed_object, can_rotate=can_rotate,
                             velocity=velocity, angular_velocity=angular_velocity)
     if right is not None:
-        actor = create_rect(width=width, height=screen_height(),
+        right_wall = create_rect(width=width, height=screen_height(),
                             bottom_left=(screen_width()-right-border*2-width-1, 0),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
@@ -628,7 +641,7 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             fixed_object=fixed_object, can_rotate=can_rotate,
                             velocity=velocity, angular_velocity=angular_velocity)
     if top is not None:
-        actor = create_rect(width=screen_width(), height=width,
+        top_wall = create_rect(width=screen_width(), height=width,
                             bottom_left=(0, screen_height()-top-border*2-width-1),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
@@ -636,13 +649,14 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             fixed_object=fixed_object, can_rotate=can_rotate,
                             velocity=velocity, angular_velocity=angular_velocity)
     if bottom is not None:
-        actor = create_rect(width=screen_width(), height=width,
+        bottom_wall = create_rect(width=screen_width(), height=width,
                             bottom_left=(0, bottom),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
                             fixed_object=fixed_object, can_rotate=can_rotate,
                             velocity=velocity, angular_velocity=angular_velocity)
+    return bottom_wall, right_wall, top_wall, left_wall
 
 
 def start(screen_title:str=_screen_props.title,
@@ -682,7 +696,10 @@ def start(screen_title:str=_screen_props.title,
     noone.shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
 
 def remove(actor:Actor):
+    global _camera_follow
     """Remove actor from game"""
+    if _camera_follow.actor == actor:
+        camera_follow(None)
     _actors.remove(actor)
     space.remove(actor.shape, actor.shape.body)
 
@@ -748,6 +765,10 @@ def update():
     physics_fps = _screen_props.fps * _physics_fps_multiplier
     for _ in range(_physics_fps_multiplier):
         space.step(1.0 / physics_fps)
+
+    if _camera_follow.actor:
+        camera.move_to(Vec2d(*_camera_follow.actor.bottomleft())-_camera_follow.offset)
+        camera.turn_to(_camera_follow.actor.angle)
 
     # poll for events
     # pygame.QUIT event means the user clicked X to close your window
@@ -817,7 +838,9 @@ def update():
     if _screen_props.color:
         screen.fill(_screen_props.color)
     if _screen_props.image_scaled:
-        screen.blit(_screen_props.image_scaled, (0, 0))
+        bg_topleft = camera.apply([(0, screen_height())])[0]
+        bg_topleft = pygame_util.to_pygame(bg_topleft, screen)
+        common.tiled_blit(_screen_props.image_scaled, bg_topleft, screen)
 
     for actor in _actors:
         actor.update()
@@ -846,9 +869,11 @@ def too_top(actor:Actor)->bool:
 def too_bottom(actor:Actor)->bool:
     return actor.bottom() < 0
 
-def mouse_xy()->Tuple[int, int]:
+def mouse_xy()->Vec2d:
+    global camera
     assert screen is not None, "screen is None"
-    return pygame_util.from_pygame(pygame.mouse.get_pos(), screen)
+    xy = pygame_util.from_pygame(pygame.mouse.get_pos(), screen)
+    return camera.apply([xy])[0]
 
 def play_sound(file_path:str, loops:int=0, volume:float=1., max_time=0, fade_ms=0)->pygame.mixer.Sound:
     global _sounds

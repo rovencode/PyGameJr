@@ -402,3 +402,23 @@ def print_to(surface:pygame.Surface, text:str, topleft:Coordinates=Vec2d.zero(),
     font = pygame.font.Font(font_name, font_size)
     text_surface = font.render(text, True, color, background_color)
     surface.blit(text_surface, topleft)
+
+def tiled_blit(source:pygame.Surface, start_xy:Tuple[int, int], dest:pygame.Surface):
+    start_x, start_y = start_xy
+    source_width, source_height = source.get_width(), source.get_height()
+    dest_width, dest_height = dest.get_width(), dest.get_height()
+
+    # Adjust start_x and start_y for negative values to ensure tiling works correctly
+    if start_x < 0:
+        start_x = source_width - (-start_x % source_width)
+    if start_y < 0:
+        start_y = source_height - (-start_y % source_height)
+
+    # Calculate the starting points for tiling considering negative offsets
+    start_x = start_x % source_width - source_width
+    start_y = start_y % source_height - source_height
+
+    # Tile the source across the dest
+    for x in range(start_x, dest_width, source_width):
+        for y in range(start_y, dest_height, source_height):
+            dest.blit(source, (x, y))
