@@ -159,7 +159,8 @@ def create_image(image_path:Union[str, Iterable[str]],
                 paint_mode:ImagePaintMode=ImagePaintMode.CENTER,
                 draw_options:Optional[DrawOptions]=None,
                 visible:bool=True,
-                density=0.0, elasticity=1.0, friction=0.0,
+                density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
+                mass:Optional[float]=None, moment:Optional[float]=None,
                 fixed_object=False, can_rotate=True,
                 velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
 
@@ -182,11 +183,18 @@ def create_image(image_path:Union[str, Iterable[str]],
     else:
         bottom_left = Vec2d(0, 0)
 
-    body_type = pymunk.Body.KINEMATIC if density == 0.0 else pymunk.Body.DYNAMIC
+    body_type = pymunk.Body.DYNAMIC if any(n is not None for n in (density, mass, moment)) else pymunk.Body.KINEMATIC
     if fixed_object:
         body_type = pymunk.Body.STATIC
 
-    body = pymunk.Body(body_type=body_type)
+    body_args = {}
+    if mass is not None:
+        body_args['mass'] = mass
+        if moment is None:
+            moment = pymunk.moment_for_box(mass, (width, height))
+    if moment is not None:
+        body_args['moment'] = moment
+    body = pymunk.Body(body_type=body_type, **body_args)
     body.position = bottom_left[0] + width/2., bottom_left[1] + height/2.
     body.angle = angle
     body.velocity = Vec2d(*velocity)
@@ -195,9 +203,12 @@ def create_image(image_path:Union[str, Iterable[str]],
     shape = pymunk.Poly.create_box(body,
                                    size=(width, height),
                                    radius=_default_poly_radius)
-    shape.density = density
-    shape.elasticity = elasticity
-    shape.friction = friction
+    if density is not None:
+        shape.density = density
+    if elasticity is not None:
+        shape.elasticity = elasticity
+    if friction is not None:
+        shape.friction = friction
 
     space.add(body, shape)
     if can_rotate:
@@ -230,11 +241,12 @@ def create_rect(width:int=20, height:int=20,
                 paint_mode:ImagePaintMode=ImagePaintMode.CENTER,
                 draw_options:Optional[DrawOptions]=None,
                 visible:bool=True,
-                density=0.0, elasticity=1.0, friction=0.0,
+                density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
+                mass:Optional[float]=None, moment:Optional[float]=None,
                 fixed_object=False, can_rotate=True,
                 velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
 
-    body_type = pymunk.Body.KINEMATIC if density == 0.0 else pymunk.Body.DYNAMIC
+    body_type = pymunk.Body.DYNAMIC if any(n is not None for n in (density, mass, moment)) else pymunk.Body.KINEMATIC
     if fixed_object:
         body_type = pymunk.Body.STATIC
 
@@ -249,7 +261,14 @@ def create_rect(width:int=20, height:int=20,
     # shape center is at (0,0)
     r_bottom_left = Vec2d(-width/2., -height/2.)
 
-    body = pymunk.Body(body_type=body_type)
+    body_args = {}
+    if mass is not None:
+        body_args['mass'] = mass
+        if moment is None:
+            moment = pymunk.moment_for_box(mass, (width, height))
+    if moment is not None:
+        body_args['moment'] = moment
+    body = pymunk.Body(body_type=body_type, **body_args)
     offset = Vec2d(*bottom_left) - r_bottom_left
     body.position = offset # centroid is now zero so no need to add to offset
     body.angle = angle
@@ -258,10 +277,13 @@ def create_rect(width:int=20, height:int=20,
 
     shape = pymunk.Poly.create_box(body,
                                    size=(width, height),
-                                   radius=_default_poly_radius)
-    shape.density = density
-    shape.elasticity = elasticity
-    shape.friction = friction
+                                   radius=0) # moment_for_box doesn't support radius
+    if density is not None:
+        shape.density = density
+    if elasticity is not None:
+        shape.elasticity = elasticity
+    if friction is not None:
+        shape.friction = friction
 
     space.add(body, shape)
     if can_rotate:
@@ -293,11 +315,12 @@ def create_circle(radius:float=20,
                 paint_mode:ImagePaintMode=ImagePaintMode.CENTER,
                 draw_options:Optional[DrawOptions]=None,
                 visible:bool=True,
-                density=0.0, elasticity=1.0, friction=0.0,
+                density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
+                mass:Optional[float]=None, moment:Optional[float]=None,
                 fixed_object=False, can_rotate=True,
                 velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
 
-    body_type = pymunk.Body.KINEMATIC if density == 0.0 else pymunk.Body.DYNAMIC
+    body_type = pymunk.Body.DYNAMIC if any(n is not None for n in (density, mass, moment)) else pymunk.Body.KINEMATIC
     if fixed_object:
         body_type = pymunk.Body.STATIC
 
@@ -310,16 +333,26 @@ def create_circle(radius:float=20,
     else:
         center = Vec2d(0, 0)
 
-    body = pymunk.Body(body_type=body_type)
+    body_args = {}
+    if mass is not None:
+        body_args['mass'] = mass
+        if moment is None:
+            moment = pymunk.moment_for_circle(mass, 0, radius)
+    if moment is not None:
+        body_args['moment'] = moment
+    body = pymunk.Body(body_type=body_type, **body_args)
     body.position = center
     body.angle = angle
     body.velocity = Vec2d(*velocity)
     body.angular_velocity = math.radians(angular_velocity)
 
     shape = pymunk.Circle(body, radius)
-    shape.density = density
-    shape.elasticity = elasticity
-    shape.friction = friction
+    if density is not None:
+        shape.density = density
+    if elasticity is not None:
+        shape.elasticity = elasticity
+    if friction is not None:
+        shape.friction = friction
 
     space.add(body, shape)
     if can_rotate:
@@ -352,11 +385,12 @@ def create_ellipse(width:int=20, height:int=20,
                 paint_mode:ImagePaintMode=ImagePaintMode.CENTER,
                 draw_options:Optional[DrawOptions]=None,
                 visible:bool=True,
-                density=0.0, elasticity=1.0, friction=0.0,
+                density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
+                mass:Optional[float]=None, moment:Optional[float]=None,
                 fixed_object=False, can_rotate=True,
                 velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
 
-    body_type = pymunk.Body.KINEMATIC if density == 0.0 else pymunk.Body.DYNAMIC
+    body_type = pymunk.Body.DYNAMIC if any(n is not None for n in (density, mass, moment)) else pymunk.Body.KINEMATIC
     if fixed_object:
         body_type = pymunk.Body.STATIC
 
@@ -368,7 +402,14 @@ def create_ellipse(width:int=20, height:int=20,
     else:
         bottom_left = Vec2d(0, 0)
 
-    body = pymunk.Body(body_type=body_type)
+    body_args = {}
+    if mass is not None:
+        body_args['mass'] = mass
+        if moment is None:
+            moment = pymunk.moment_for_box(mass, (width, height))
+    if moment is not None:
+        body_args['moment'] = moment
+    body = pymunk.Body(body_type=body_type, **body_args)
     body.position = bottom_left[0] + width/2., bottom_left[1] + height/2.
     body.angle = angle
     body.velocity = Vec2d(*velocity)
@@ -377,9 +418,12 @@ def create_ellipse(width:int=20, height:int=20,
     shape = pymunk.Poly.create_box(body,
                                    size=(width, height),
                                    radius=_default_poly_radius)
-    shape.density = density
-    shape.elasticity = elasticity
-    shape.friction = friction
+    if density is not None:
+        shape.density = density
+    if elasticity is not None:
+        shape.elasticity = elasticity
+    if friction is not None:
+        shape.friction = friction
 
     space.add(body, shape)
     if can_rotate:
@@ -413,11 +457,12 @@ def create_polygon_any(points:Sequence[Coordinates],
                 paint_mode:ImagePaintMode=ImagePaintMode.CENTER,
                 draw_options:Optional[DrawOptions]=None,
                 visible:bool=True,
-                density=0.0, elasticity=1.0, friction=0.0,
+                density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
+                mass:Optional[float]=None, moment:Optional[float]=None,
                 fixed_object=False, can_rotate=True,
                 velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
 
-    body_type = pymunk.Body.KINEMATIC if density == 0.0 else pymunk.Body.DYNAMIC
+    body_type = pymunk.Body.DYNAMIC if any(n is not None for n in (density, mass, moment)) else pymunk.Body.KINEMATIC
     if fixed_object:
         body_type = pymunk.Body.STATIC
 
@@ -440,16 +485,26 @@ def create_polygon_any(points:Sequence[Coordinates],
     else:
         center = Vec2d(0, 0)
 
-    body = pymunk.Body(body_type=body_type)
+    body_args = {}
+    if mass is not None:
+        body_args['mass'] = mass
+        if moment is None:
+            moment = pymunk.moment_for_poly(mass, points, radius=_default_poly_radius)
+    if moment is not None:
+        body_args['moment'] = moment
+    body = pymunk.Body(body_type=body_type, **body_args)
     body.position = center
     body.angle = angle
     body.velocity = Vec2d(*velocity)
     body.angular_velocity = math.radians(angular_velocity)
 
     shape = pymunk.Poly(body, points, radius=_default_poly_radius)
-    shape.density = density
-    shape.elasticity = elasticity
-    shape.friction = friction
+    if density is not None:
+        shape.density = density
+    if elasticity is not None:
+        shape.elasticity = elasticity
+    if friction is not None:
+        shape.friction = friction
 
     space.add(body, shape)
     if can_rotate:
@@ -482,7 +537,8 @@ def create_polygon(sides:int, width:int=20, height:int=20,
                 paint_mode:ImagePaintMode=ImagePaintMode.CENTER,
                 draw_options:Optional[DrawOptions]=None,
                 visible:bool=True,
-                density=0.0, elasticity=1.0, friction=0.0,
+                density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
+                mass:Optional[float]=None, moment:Optional[float]=None,
                 fixed_object=False, can_rotate=True,
                 velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
 
@@ -501,6 +557,7 @@ def create_polygon(sides:int, width:int=20, height:int=20,
                 draw_options=draw_options,
                 visible=visible,
                 density=density, elasticity=elasticity, friction=friction,
+                mass=mass, moment=moment,
                 fixed_object=fixed_object, can_rotate=can_rotate,
                 velocity=velocity, angular_velocity=angular_velocity)
 
@@ -512,7 +569,7 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                         width:int=1,
                         border=0,
                         transparency_enabled:bool=False,
-                        density=1.0, elasticity=1.0, friction=0.0) -> None:
+                        density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None) -> None:
 
     fixed_object=True
     can_rotate=True
@@ -672,14 +729,12 @@ def update():
                                  event.scancode, event.window)
         if event.type == pygame.KEYUP:
             key_name = pygame.key.name(event.key)
-            down_keys.remove(key_name)
             for actor in _actors_handlers.get(pygame.KEYUP, []):
                 actor.on_keyup(key_name, event.key,
                                  event.mod,
                                  event.scancode, event.window)
         if event.type == pygame.MOUSEBUTTONDOWN:
             button_name = mouse_button_name(event.button)
-            down_mousbuttons.add(button_name)
             pos = pygame_util.from_pygame(Vec2d(*event.pos), screen)
             for actor in _actors_handlers.get(pygame.MOUSEBUTTONDOWN, []):
                 actor.on_mousedown(pos, button_name, event.button,
@@ -700,12 +755,15 @@ def update():
             for actor in _actors_handlers.get(pygame.MOUSEWHEEL, []):
                 actor.on_mousewheel(event.x, event.y, event.flipped,
                                     event.touch, event.window)
-    if down_keys:
-        for actor in _actors_handlers.get(pygame.KEYUP, []):
-            actor.on_keypress(down_keys)
-    if down_mousbuttons:
-        for actor in _actors_handlers.get(pygame.MOUSEBUTTONUP, []):
-            actor.on_mousebutton(down_mousbuttons)
+
+        if event.type==pygame.KEYUP and down_keys:
+            for actor in _actors_handlers.get(pygame.KEYUP, []):
+                actor.on_keypress(down_keys)
+            down_keys.clear()
+        if event.type==pygame.MOUSEBUTTONUP and down_mousbuttons:
+            for actor in _actors_handlers.get(pygame.MOUSEBUTTONUP, []):
+                actor.on_mousebutton(down_mousbuttons)
+            down_mousbuttons.clear()
 
     # call on_frame() to update your game state
     on_frame()
