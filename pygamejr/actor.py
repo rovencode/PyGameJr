@@ -115,10 +115,10 @@ class Actor:
     def group(self, value:int):
         self.shape.group = value
 
-    def apply_force(self, force:Coordinates, global_point:Coordinates=(0,0))->None:
-        self.shape.body.apply_force_at_world_point(force, global_point)
-    def apply_impulse(self, impulse:Coordinates, global_point:Coordinates=(0,0))->None:
-        self.shape.body.apply_impulse_at_world_point(impulse, global_point)
+    def apply_force(self, force:Coordinates, local_point:Coordinates=(0,0))->None:
+        self.shape.body.apply_force_at_local_point(force, local_point)
+    def apply_impulse(self, impulse:Coordinates, local_point:Coordinates=(0,0))->None:
+        self.shape.body.apply_impulse_at_local_point(impulse, local_point)
     def apply_torque(self, torque:float)->None:
         self.shape.body.apply_torque(torque)
     def apply_local_force(self, force:Coordinates, local_point:Coordinates=(0,0))->None:

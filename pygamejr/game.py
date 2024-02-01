@@ -370,41 +370,49 @@ def create_polygon(sides:int, width:int=20, height:int=20,
                 density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable,
                 velocity=velocity, angular_velocity=angular_velocity)
 
-def create_screen_walls(left:bool=False, right:bool=False,
-                        top:bool=False, bottom:bool=False,
+def create_screen_walls(left:Optional[Union[float, bool]]=None,
+                        right:Optional[Union[float, bool]]=None,
+                        top:Optional[Union[float, bool]]=None,
+                        bottom:Optional[Union[float, bool]]=None,
                         color:PyGameColor=(0, 0, 0, 0),
                         border=0,
                         transparency_enabled:bool=False,
                         density=1.0, elasticity=1.0, friction=0.0, unmoveable=True,
                         velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> None:
     global _screen_walls
-    if left:
+
+    left = (0. if left else None) if isinstance(left, bool) else left
+    right = (0. if right else None) if isinstance(right, bool) else right
+    top = (0. if top else None) if isinstance(top, bool) else top
+    bottom = (0. if bottom else None) if isinstance(bottom, bool) else bottom
+
+    if left is not None:
         actor = create_rect(width=1, height=screen_height(),
-                            bottom_left=(0, 0),
+                            bottom_left=(left, 0),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable,
                             velocity=velocity, angular_velocity=angular_velocity)
         _screen_walls.append(actor)
-    if right:
+    if right is not None:
         actor = create_rect(width=1, height=screen_height(),
-                            bottom_left=(screen_width()-border, 0),
+                            bottom_left=(screen_width()-right, 0),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable,
                             velocity=velocity, angular_velocity=angular_velocity)
         _screen_walls.append(actor)
-    if top:
+    if top is not None:
         actor = create_rect(width=screen_width(), height=1,
-                            bottom_left=(0, screen_height()-border),
+                            bottom_left=(0, screen_height()-top),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable,
                             velocity=velocity, angular_velocity=angular_velocity)
         _screen_walls.append(actor)
-    if bottom:
+    if bottom is not None:
         actor = create_rect(width=screen_width(), height=1,
-                            bottom_left=(0, 0),
+                            bottom_left=(0, bottom),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction, unmoveable=unmoveable,

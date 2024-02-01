@@ -20,7 +20,7 @@ NumericNamedTuple = namedtuple('NumericNamedTuple', ['x', 'y'])
 NumericNamedTuple.__doc__ = """A named tuple with two numeric fields x and y."""
 NumericNamedTuple.__annotations__ = {'x': Union[int, float], 'y': Union[int, float]}
 
-Coordinates=Union[Tuple[int, int], Vec2d, NumericNamedTuple]
+Coordinates=Union[Tuple[float, float], Vec2d, NumericNamedTuple]
 Vector2=Union[Tuple[float, float], Vec2d, NumericNamedTuple]
 
 def get_image(image_path:str, cache=True)->pygame.Surface:
