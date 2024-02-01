@@ -1,5 +1,4 @@
-import random
-from pygamejr import game, Physics, Vector2
+from pygamejr import game
 
 game.show_mouse_coordinates = True
 game.start()

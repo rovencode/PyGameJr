@@ -1,5 +1,5 @@
 import random
-from pygamejr import game, Physics, Vector2
+from pygamejr import game
 
 game.start(gravity=0)
 

@@ -1,4 +1,4 @@
-from pygamejr import game, Physics
+from pygamejr import game
 
 game.start(gravity=-100)
 

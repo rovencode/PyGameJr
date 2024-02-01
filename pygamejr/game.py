@@ -1,7 +1,8 @@
+from typing import List, Tuple, Optional, Set, Dict, Any, Union, Callable, Iterable, Sequence
+import random
 import math
 from dataclasses import dataclass
 import timeit
-from typing import List, Tuple, Optional, Set, Dict, Any, Union, Callable, Iterable, Sequence
 from enum import Enum
 import time
 
@@ -92,6 +93,10 @@ def add_text(text:str, at:Optional[Coordinates]=None,
 def remove_text(text:str, name:Optional[str]=None):
     """Remove text from screen"""
     noone.remove_text(text=text, name=name)
+
+def random_color(random_alpha=False)->PyGameColor:
+    return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255),
+            random.randint(0, 255) if random_alpha else 255)
 
 def event_to_code(name:str)->int:
     if name == "on_keydown":
@@ -504,11 +509,15 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                         top:Optional[Union[float, bool]]=None,
                         bottom:Optional[Union[float, bool]]=None,
                         color:PyGameColor=(0, 0, 0, 0),
+                        width:int=1,
                         border=0,
                         transparency_enabled:bool=False,
-                        density=1.0, elasticity=1.0, friction=0.0,
-                        fixed_object=True, can_rotate=False,
-                        velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> None:
+                        density=1.0, elasticity=1.0, friction=0.0) -> None:
+
+    fixed_object=True
+    can_rotate=True
+    velocity:Vector2=Vec2d.zero()
+    angular_velocity:float=0.
 
     left = (0. if left else None) if isinstance(left, bool) else left
     right = (0. if right else None) if isinstance(right, bool) else right
@@ -516,7 +525,7 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
     bottom = (0. if bottom else None) if isinstance(bottom, bool) else bottom
 
     if left is not None:
-        actor = create_rect(width=1, height=screen_height(),
+        actor = create_rect(width=width, height=screen_height(),
                             bottom_left=(left, 0),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
@@ -524,23 +533,23 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             fixed_object=fixed_object, can_rotate=can_rotate,
                             velocity=velocity, angular_velocity=angular_velocity)
     if right is not None:
-        actor = create_rect(width=1, height=screen_height(),
-                            bottom_left=(screen_width()-right, 0),
+        actor = create_rect(width=width, height=screen_height(),
+                            bottom_left=(screen_width()-right-border*2-width-1, 0),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
                             fixed_object=fixed_object, can_rotate=can_rotate,
                             velocity=velocity, angular_velocity=angular_velocity)
     if top is not None:
-        actor = create_rect(width=screen_width(), height=1,
-                            bottom_left=(0, screen_height()-top),
+        actor = create_rect(width=screen_width(), height=width,
+                            bottom_left=(0, screen_height()-top-border*2-width-1),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
                             fixed_object=fixed_object, can_rotate=can_rotate,
                             velocity=velocity, angular_velocity=angular_velocity)
     if bottom is not None:
-        actor = create_rect(width=screen_width(), height=1,
+        actor = create_rect(width=screen_width(), height=width,
                             bottom_left=(0, bottom),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
@@ -578,6 +587,8 @@ def start(screen_title:str=_screen_props.title,
     # create No One actor to handle global events, put it offscreen
     noone = create_rect(width=screen_width, height=screen_height,
                         color=(0, 0, 0, 0), bottom_left=(0,0))
+    # this body doesn't collide with anything
+    noone.shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
 
 def screen_size()->Tuple[int, int]:
     return _screen_props.width, _screen_props.height
