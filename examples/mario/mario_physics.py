@@ -15,7 +15,7 @@ mario = game.create_image(image_path=["mario1.png", "mario2.png", "mario3.png"],
                           bottom_left=(100,200), scale_xy=(0.5, 0.5),
                           density=1, elasticity=0.6, friction=0.1, can_rotate=False)
 mario.start_animation(frame_time_s=0.2)
-game.camera_follow(mario)
+#game.camera_follow(mario)
 
 # create platforms
 platforms = []
