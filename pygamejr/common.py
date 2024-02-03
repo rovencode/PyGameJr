@@ -441,7 +441,7 @@ def draw_shape(screen:pygame.Surface, shape:pymunk.Shape,
         angle = shape.body.angle + camera.theta
         if angle != 0:
             # add 180 degree to flip y
-            image = pygame.transform.rotate(image, math.degrees(angle)+180)
+            image = pygame.transform.rotate(image, math.degrees(angle))
 
         # first draw image on the shape surface
         # coordinates for this image are such that to match the centroid of the shape with the centroid of the image
@@ -480,7 +480,7 @@ def print_to(surface:pygame.Surface, text:str, topleft:Coordinates=Vec2d.zero(),
     text_surface = font.render(text, True, color, background_color)
     surface.blit(text_surface, topleft)
 
-def tiled_blit(source:pygame.Surface, start_xy:Tuple[int, int], dest:pygame.Surface):
+def tiled_blit(source:pygame.Surface, start_xy:Tuple[float, float], dest:pygame.Surface):
     start_x, start_y = start_xy
     source_width, source_height = source.get_width(), source.get_height()
     dest_width, dest_height = dest.get_width(), dest.get_height()
@@ -496,6 +496,6 @@ def tiled_blit(source:pygame.Surface, start_xy:Tuple[int, int], dest:pygame.Surf
     start_y = start_y % source_height - source_height
 
     # Tile the source across the dest
-    for x in range(start_x, dest_width, source_width):
-        for y in range(start_y, dest_height, source_height):
+    for x in range(round(start_x), dest_width, source_width):
+        for y in range(round(start_y), dest_height, source_height):
             dest.blit(source, (x, y))

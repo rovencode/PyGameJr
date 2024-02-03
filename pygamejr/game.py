@@ -731,6 +731,8 @@ def set_screen_size(width:int, height:int):
     _screen_props.width = width
     _screen_props.height = height
     _scale_screen_image()
+def screen_rect()->List[Vec2d]:
+    return [Vec2d(0, 0), Vec2d(0, screen_height()), Vec2d(screen_width(), screen_height()), Vec2d(screen_width(), 0)]
 
 def set_screen_color(color:PyGameColor):
     _screen_props.color = color
@@ -859,9 +861,23 @@ def update():
     if _screen_props.color:
         screen.fill(_screen_props.color)
     if _screen_props.image_scaled:
-        bg_topleft = camera.apply([(0, screen_height())])[0]
-        bg_topleft = pygame_util.to_pygame(bg_topleft, screen)
-        common.tiled_blit(_screen_props.image_scaled, bg_topleft, screen)
+        bg_image = _screen_props.image_scaled
+        if camera.scale != 1.:
+            bg_image = pygame.transform.scale(bg_image,
+                (int(bg_image.get_width()*camera.scale),
+                    int(bg_image.get_height()*camera.scale)))
+        if camera.bottom_left != (0, 0):
+            start_x = (camera.bottom_left[0] % bg_image.get_width()) * bg_image.get_width() - camera.bottom_left[0]
+            start_y = (camera.bottom_left[1] % bg_image.get_height()) * bg_image.get_height() - camera.bottom_left[1]
+            bg_topleft = start_x, screen_height() - start_y # flipped y
+        else:
+            bg_topleft = Vec2d(0, 0)
+        common.tiled_blit(bg_image, bg_topleft, screen)
+        if camera.angle != 0.:
+            angled_screen = pygame.transform.rotate(screen, camera.angle)
+            top_left = ((screen_width()-angled_screen.get_width()) //2,
+                        (screen_height()-angled_screen.get_height()) //2)
+            screen.blit(angled_screen, top_left)
 
     for actor in _actors:
         actor.update()

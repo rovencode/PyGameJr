@@ -35,14 +35,14 @@ game.play_sound('music.mp3', loops=-1)
 
 def mario_keyboard(mario, keys):
     if "left" in keys:
-        mario.apply_impulse((-1000000, 0))
+        mario.apply_impulse((-100000, 0))
     elif "right" in keys:
-        mario.apply_impulse((1000000, 0))
+        mario.apply_impulse((100000, 0))
     elif "up" in keys:
-        mario.apply_impulse((0, 5000000))
+        mario.apply_impulse((0, 500000))
         game.play_sound('jump.mp3')
     elif "down" in keys:
-        mario.apply_impulse((0, -100000))
+        mario.apply_impulse((0, -10000))
 game.handle(mario.on_keypress, mario_keyboard)
 
 game.keep_running()
