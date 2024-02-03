@@ -160,7 +160,6 @@ class DrawOptions:
     angle_line_color:PyGameColor="black"
     center_radius:float=0
     center_color:PyGameColor="magenta"
-    fps_pos:Optional[Coordinates]=None
 
 class ImagePaintMode(Enum):
     CENTER = 1

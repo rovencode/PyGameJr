@@ -731,7 +731,7 @@ def start(screen_title:str=_screen_props.title,
           screen_color:PyGameColor=_screen_props.color,
           screen_image_path:Optional[str]=_screen_props.image_path,
           screen_fps=_screen_props.fps,
-          physics_fps_multiplier:int=4,
+          physics_fps_multiplier:int=8,
           gravity:Optional[Union[float, Vector2]]=None):
 
     global  _running, screen, draw_options, noone, _physics_fps_multiplier
@@ -829,7 +829,7 @@ def update():
 
     # first call physics so manual overrides can happen later
     # use fixed fps for dt instead of actual dt
-    physics_fps = _screen_props.fps * _physics_fps_multiplier
+    physics_fps = _screen_props.fps * _physics_fps_multiplier * 0.25
     for _ in range(_physics_fps_multiplier):
         space.step(1.0 / physics_fps)
 

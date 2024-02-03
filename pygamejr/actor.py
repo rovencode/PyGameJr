@@ -30,8 +30,6 @@ class Actor:
         self.border = border
         self.draw_options = draw_options
         self.visible = visible
-        self._last_draw_time = timeit.default_timer()
-        self._last_dt = 0.
 
         self.texts:Dict[str, TextInfo] = {}
 
@@ -371,18 +369,8 @@ class Actor:
 
     def draw(self, screen:pygame.Surface, camera:Camera)->None:
         if self.visible:
-            texts = self.texts
-            if self.draw_options is not None:
-                if self.draw_options.fps_pos is not None:
-                    dt = timeit.default_timer() - self._last_draw_time
-                    self._last_draw_time = timeit.default_timer()
-                    texts = texts.copy()
-                    self._last_dt = 0.1*dt + 0.9*self._last_dt
-                    texts["fps"] = TextInfo(f"FPS: {1./self._last_dt:.1f}",
-                                            self.draw_options.fps_pos)
-
             draw_shape(screen, shape=self.shape,
-                                         texts=texts,
+                                         texts=self.texts,
                                          color=self.color,
                                          border=self.border,
                                          draw_options=self.draw_options,
