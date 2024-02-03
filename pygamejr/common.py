@@ -117,6 +117,16 @@ def collide_mask_ex(left:pygame.sprite.Sprite, right:pygame.sprite.Sprite)->bool
         return left.rect.colliderect(right.rect) # type: ignore
 
 @dataclass
+class Grounding:
+    normal:Vec2d=Vec2d.zero()
+    penetration:Vec2d=Vec2d.zero()
+    impulse:Vec2d=Vec2d.zero()
+    position:Vec2d=Vec2d.zero()
+    has_body:bool=False
+    friction:float=0.0
+    velocity:Vec2d=Vec2d.zero()
+
+@dataclass
 class AnimationSpec:
     frame_time_s:float=0.1
     last_frame_time:float=timeit.default_timer()
@@ -352,6 +362,13 @@ def tile_image(image:pygame.Surface, dest:pygame.Surface, start_xy:Coordinates)-
         for y in range(round(start_y), dest_height, source_height):
             dest.blit(image, (x, y))
 
+def clamp(value:float, min_value:float, max_value:float)->float:
+    """Clamps a value to a range."""
+    return max(min(value, max_value), min_value)
+
+def interpolate(start:float, end:float, max_amount:float)->float:
+    """Interpolates between two values."""
+    return start + clamp((end - start), -max_amount, max_amount)
 
 def draw_shape(screen:pygame.Surface, shape:pymunk.Shape,
                    texts:Dict[str, TextInfo],

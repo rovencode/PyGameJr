@@ -8,7 +8,8 @@ from pymunk import pygame_util, Vec2d
 
 from pygamejr.common import PyGameColor, AnimationSpec, TextInfo,  \
                             CostumeSpec, Coordinates, \
-                            DrawOptions, ImagePaintMode, Camera, draw_shape
+                            DrawOptions, ImagePaintMode, Camera, draw_shape, \
+                            Grounding
 from pygamejr import common
 
 
@@ -311,6 +312,26 @@ class Actor:
         else:
             raise ValueError(f"Unknown shape type {self.shape}")
         space.add(self.shape)
+
+
+    def get_grounding(self)->Grounding:
+        grounding = Grounding()
+        other_body:Optional[pymunk.Body] = None
+        def f(arbitrater):
+            n = arbitrater.contact_point_set.normal
+            if n.y > grounding.normal.y:
+                grounding.normal = n
+                grounding.penetration = -arbitrater.contact_point_set.points[0].distance
+                grounding.impulse = arbitrater.total_impulse
+                grounding.position = arbitrater.contact_point_set.points[0].point_b
+                grounding.has_body = arbitrater.shapes[1].body is not None
+                if grounding.has_body:
+                    grounding.friction = abs(n.x/n.y)
+                    grounding.velocity = arbitrater.shapes[1].body.velocity
+
+        self.shape.body.each_arbiter(f)
+
+        return grounding
 
 
     def fit_to_image(self)->None:

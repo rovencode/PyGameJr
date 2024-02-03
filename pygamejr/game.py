@@ -105,6 +105,10 @@ def screen_right()->int:
 def screen_center()->Tuple[float, float]:
     return _screen_props.width//2., _screen_props.height//2.
 
+def gravity()->Vec2d:
+    if space is None:
+        return Vec2d(0, 0)
+    return space.gravity
 
 def add_text(text:str, at:Optional[Coordinates]=None,
              font_name:Optional[str]=None, font_size:int=20,
