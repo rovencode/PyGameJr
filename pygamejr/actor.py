@@ -7,8 +7,8 @@ import pymunk
 from pymunk import pygame_util, Vec2d
 
 from pygamejr.common import PyGameColor, AnimationSpec, TextInfo,  \
-                            surface_from_shape, CostumeSpec, Coordinates, \
-                            DrawOptions, ImagePaintMode, Camera
+                            CostumeSpec, Coordinates, \
+                            DrawOptions, ImagePaintMode, Camera, draw_shape
 from pygamejr import common
 
 
@@ -31,9 +31,7 @@ class Actor:
         self.draw_options = draw_options
         self.visible = visible
 
-        self.animation = AnimationSpec()
         self.texts:Dict[str, TextInfo] = {}
-        self.current_image:Optional[pygame.Surface] = None
 
         self.costumes:Dict[str, CostumeSpec] = {}
         self.current_costume:Optional[CostumeSpec] = None
@@ -47,9 +45,12 @@ class Actor:
                             change=True)
 
     def start_animation(self, loop:bool=True, from_index=0, frame_time_s:float=0.1):
-        self.animation.start(loop, from_index, frame_time_s)
+        if self.current_costume is not None:
+            self.current_costume.animation.start(loop, from_index, frame_time_s)
     def stop_animation(self):
-        self.animation.stop()
+        if self.current_costume is not None:
+            self.current_costume.animation.stop()
+
     def show(self):
         self.visible = True
     def hide(self):
@@ -147,26 +148,14 @@ class Actor:
                     paint_mode:ImagePaintMode=ImagePaintMode.CENTER,
                     change:bool=False):
 
-        if isinstance(image_paths, str):
-            image_paths = [image_paths] # type: ignore
-
         costume = CostumeSpec(name, image_paths,
-                        scale_xy=scale_xy,
                         transparent_color=transparent_color,
                         transparency_enabled=transparency_enabled,
                         paint_mode=paint_mode)
+        costume.scale_xy = scale_xy
         self.costumes[name] = costume
 
-        for image_path in image_paths:
-            # load image
-            image = common.get_image(image_path)
-            # set transparency
-            if costume.transparent_color is not None:
-                image.set_colorkey(costume.transparent_color)
-            else:
-                if costume.transparency_enabled and common.has_transparency(image):
-                        image = image.convert_alpha()
-            costume.images.append(image)
+        costume.add_images(image_paths)
 
         if change:
             self.current_costume = costume
@@ -298,26 +287,7 @@ class Actor:
 
     def update(self)->None:
         if self.current_costume is not None:
-            if self.animation.started:
-                if timeit.default_timer() - self.animation.last_frame_time >= self.animation.frame_time_s:
-                    self.animation.image_index += 1
-                    self.animation.last_frame_time = timeit.default_timer()
-                    if self.animation.image_index >= len(self.current_costume.images):
-                        if self.animation.loop:
-                            self.animation.image_index = 0
-                        else:
-                            self.animation.image_index = len(self.current_costume.images)-1
-                            self.animation.stop()
-            self.current_image = self.current_costume.images[self.animation.image_index]
-            # scale image
-            if self.current_costume.scale_xy != (1., 1.):
-                self.current_image = pygame.transform.scale(
-                    self.current_image,(
-                        self.current_image.get_width()*self.current_costume.scale_xy[0], \
-                        self.current_image.get_height()*self.current_costume.scale_xy[1]
-                    ))
-            else:
-                self.current_image = self.current_image.copy()
+            self.current_costume.update()
 
     def _recreate_shape(self, new_width, new_height)->None:
         self.shape.cache_bb()
@@ -359,11 +329,11 @@ class Actor:
                 self.shape.unsafe_set_endpoints(a, b)
 
     def fit_image(self)->None:
-        if self.current_costume is not None and len(self.current_costume.images):
+        if self.current_costume is not None and len(self.current_costume):
             new_width, new_height = self.width(), self.height()
-            old_width, old_height = self.current_costume.images[0].get_size()
-            if new_width != old_width or new_height != old_height:
-                self.current_costume.scale_xy = (new_width/old_width, new_height/old_height)
+            old_width, old_height = self.current_costume.get_image().get_size()
+            scale_xy = (new_width/old_width, new_height/old_height)
+            self.current_costume.scale_xy = scale_xy
 
     def on_keypress(self, keys:Set[str]):
         pass
@@ -398,17 +368,11 @@ class Actor:
 
     def draw(self, screen:pygame.Surface, camera:Camera)->None:
         if self.visible:
-            surface, center = surface_from_shape(shape=self.shape,
+            draw_shape(screen, shape=self.shape,
                                          texts=self.texts,
                                          color=self.color,
                                          border=self.border,
                                          draw_options=self.draw_options,
-                                         image=self.current_image,
-                                         image_paint_mode=self.current_costume.paint_mode \
-                                            if self.current_costume else ImagePaintMode.CENTER ,
-                                         camera=camera)
+                                         camera=camera,
+                                         costume=self.current_costume)
 
-            body_pos = camera.apply([self.shape.body.position])[0]
-            body_top_left = body_pos-Vec2d(center[0], -center[1])
-            top_left = Vec2d(*pygame_util.to_pygame(body_top_left, screen))
-            screen.blit(surface, top_left)

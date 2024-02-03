@@ -63,7 +63,7 @@ class ScreenProps:
     """Screen properties"""
     width:int=1280
     height:int=720
-    color:PyGameColor="purple"
+    color:PyGameColor=(255, 255, 255, 0)
     fps:int=60
     image_path:Optional[str]=None
     image:Optional[pygame.Surface]=None # image to display on screen

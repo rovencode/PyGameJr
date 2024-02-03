@@ -116,7 +116,50 @@ def collide_mask_ex(left:pygame.sprite.Sprite, right:pygame.sprite.Sprite)->bool
     else:
         return left.rect.colliderect(right.rect) # type: ignore
 
+@dataclass
+class AnimationSpec:
+    frame_time_s:float=0.1
+    last_frame_time:float=timeit.default_timer()
+    loop:bool=True
+    started:bool=False
+    image_index:int=0
 
+    def start(self, loop:bool=True, from_index=0, frame_time_s:float=0.1):
+        self.started = True
+        self.loop = loop
+        self.frame_time_s = frame_time_s
+        self.image_index = from_index
+        self.last_frame_time = timeit.default_timer()
+
+    def stop(self):
+        self.started = False
+
+    def update(self, image_count:int)->None:
+        if not self.started:
+            return
+        current_time = timeit.default_timer()
+        if current_time - self.last_frame_time > self.frame_time_s:
+            self.last_frame_time = current_time
+            self.image_index += 1
+            if self.image_index >= image_count:
+                if self.loop:
+                    self.image_index = 0
+                else:
+                    self.image_index -= 1
+                    self.stop()
+
+@dataclass
+class ImageSpec:
+    image:pygame.Surface
+    image_scale_xy:Tuple[float,float]=(1., 1.)
+    image_transparency_enabled:bool=False
+
+@dataclass
+class DrawOptions:
+    angle_line_width:int=0
+    angle_line_color:PyGameColor="black"
+    center_radius:float=0
+    center_color:PyGameColor="magenta"
 
 class ImagePaintMode(Enum):
     CENTER = 1
@@ -135,11 +178,61 @@ class TextInfo:
 class CostumeSpec:
     name:str
     image_paths:Iterable[str]
-    scale_xy:Tuple[float,float]=(1., 1.)
+    _scale_xy:Tuple[float,float]=(1., 1.)
     transparent_color:Optional[PyGameColor]=None
     transparency_enabled:bool=False
-    images:List[pygame.Surface]=field(default_factory=list)
+    _images:List[pygame.Surface]=field(default_factory=list)
+    _scaled_images:List[pygame.Surface]=field(default_factory=list)
     paint_mode:ImagePaintMode=ImagePaintMode.CENTER
+    animation = AnimationSpec()
+
+    @property
+    def scale_xy(self)->Tuple[float,float]:
+        return self._scale_xy
+    @scale_xy.setter
+    def scale_xy(self, value:Tuple[float,float]):
+        self._scale_xy = value
+
+        # scale current images
+        self._scaled_images = []
+        for image in self._images:
+            self._scaled_images.append(self._get_scaled_image(image))
+
+    def _get_scaled_image(self, image:pygame.Surface)->pygame.Surface:
+        if self.scale_xy != (1., 1.):
+            scaled_image = pygame.transform.scale(
+                image,(image.get_width()*self.scale_xy[0], \
+                        image.get_height()*self.scale_xy[1]
+                ))
+            return scaled_image
+        else:
+            return image
+
+    def __len__(self)->int:
+        return len(self._images)
+
+    def update(self)->None:
+        self.animation.update(len(self._images))
+
+    def get_image(self, scaled=True)->pygame.Surface:
+        return self._scaled_images[self.animation.image_index]
+
+    def add_images(self, image_paths:Union[str, Iterable[str]],
+                   cache:bool=True)->None:
+        if isinstance(image_paths, str):
+            image_paths = [image_paths] # type: ignore
+
+        for image_path in image_paths:
+            # load image
+            image = get_image(image_path, cache=cache)
+            # set transparency
+            if self.transparent_color is not None:
+                image.set_colorkey(self.transparent_color)
+            else:
+                if self.transparency_enabled and has_transparency(image):
+                        image = image.convert_alpha()
+            self._images.append(image)
+            self._scaled_images.append(self._get_scaled_image(image))
 
 
 @dataclass
@@ -216,38 +309,8 @@ class Camera:
         self.scale = 1.0
         self._update_transform()
 
-@dataclass
-class AnimationSpec:
-    frame_time_s:float=0.1
-    last_frame_time:float=timeit.default_timer()
-    loop:bool=True
-    started:bool=False
-    image_index:int=0
 
-    def start(self, loop:bool=True, from_index=0, frame_time_s:float=0.1):
-        self.started = True
-        self.loop = loop
-        self.frame_time_s = frame_time_s
-        self.image_index = from_index
-        self.last_frame_time = timeit.default_timer()
-
-    def stop(self):
-        self.started = False
-
-@dataclass
-class ImageSpec:
-    image:pygame.Surface
-    image_scale_xy:Tuple[float,float]=(1., 1.)
-    image_transparency_enabled:bool=False
-
-@dataclass
-class DrawOptions:
-    angle_line_width:int=0
-    angle_line_color:PyGameColor="black"
-    center_radius:float=0
-    center_color:PyGameColor="magenta"
-
-def rectangle_from_line(p1:Vec2d, p2:Vec2d)->Tuple[Vec2d, Vec2d, Vec2d, Vec2d]:
+def rectangle_from_line(p1:Vec2d, p2:Vec2d)->List[Vec2d]:
     """Create a rectangle around a line of width 1."""
     # Calculate the vector representing the line
     line_vec = p2 - p1
@@ -264,135 +327,149 @@ def rectangle_from_line(p1:Vec2d, p2:Vec2d)->Tuple[Vec2d, Vec2d, Vec2d, Vec2d]:
     corner3 = p2 - perp_vec
     corner2 = p1 - perp_vec
 
-    return corner1, corner2, corner3, corner4
+    return [corner1, corner2, corner3, corner4]
 
-def surface_from_shape(shape:pymunk.Shape,
+def tile_image(image:pygame.Surface, dest:pygame.Surface, start_xy:Coordinates)->None:
+    start_x, start_y = start_xy
+    source_width, source_height = image.get_width(), image.get_height()
+    dest_width, dest_height = dest.get_width(), dest.get_height()
+
+    # Adjust start_x and start_y for negative values to ensure tiling works correctly
+    if start_x < 0:
+        start_x = source_width - (-start_x % source_width)
+    if start_y < 0:
+        start_y = source_height - (-start_y % source_height)
+
+    # Calculate the starting points for tiling considering negative offsets
+    start_x = start_x % source_width - source_width
+    start_y = start_y % source_height - source_height
+
+    # Tile the image across the dest
+    for x in range(round(start_x), dest_width, source_width):
+        for y in range(round(start_y), dest_height, source_height):
+            dest.blit(image, (x, y))
+
+
+def draw_shape(screen:pygame.Surface, shape:pymunk.Shape,
                    texts:Dict[str, TextInfo],
                    color:PyGameColor, border:int,
                    draw_options:Optional[DrawOptions],
                    camera:Camera,
-                   image:Optional[pygame.Surface]=None,
-                   image_paint_mode:ImagePaintMode=ImagePaintMode.CENTER)->Tuple[pygame.Surface, Vec2d]:
-    """Creates the surface to fit the given shape and draws on the shape on it.
-       Also returns the local coordinates of the center in pygame coordinates.
-    """
+                   costume:Optional[CostumeSpec]=None)->None:
 
-    surface:Optional[pygame.Surface] = None
-    center:Optional[Vec2d] = None
-
-    if isinstance(shape, pymunk.Circle):
-        center = Vec2d(shape.radius, shape.radius)
+    # points in shape are centered at origin without rotation
+    radius:Optional[float] = None
+    if isinstance(shape, pymunk.Poly):
+        vertices = shape.get_vertices()
+    elif isinstance(shape, pymunk.Segment):
+        vertices = rectangle_from_line(shape.a, shape.b)
+    elif isinstance(shape, pymunk.Circle):
+        vertices = [Vec2d(shape.radius, shape.radius), Vec2d(shape.radius, -shape.radius),
+                    Vec2d(-shape.radius, -shape.radius), Vec2d(-shape.radius, shape.radius)]
         radius = shape.radius
-        angle = shape.body.angle
-
-        # apply transforms
-        # No translate because it gets applied by body position later
-        center = camera.apply([center], translate=False, rotate=False)[0]
-        radius *= camera.scale
-        angle += camera.theta
-
-        width, height = int(radius*2), int(radius*2)
-
-        surface = pygame.Surface((width, height), pygame.SRCALPHA)
-        surface.fill((0, 0, 0, 0)) # transparent initial surface
-        pygame.draw.circle(surface, color, center, radius, border)
-
-        if draw_options and draw_options.angle_line_width:
-            end_pos = (center[0] + int(radius * math.cos(angle)),
-                       center[1] - int(radius * math.sin(angle)))
-            pygame.draw.line(surface, draw_options.angle_line_color,
-                             center, end_pos, round(draw_options.angle_line_width*camera.scale))
-
-    elif isinstance(shape, pymunk.Poly) or isinstance(shape, pymunk.Segment):
-        angle = shape.body.angle
-        vertices = shape.get_vertices() if isinstance(shape, pymunk.Poly) \
-                    else rectangle_from_line(shape.a, shape.b)
-        # rotate vertices
-        vertices = [v.rotated(shape.body.angle) for v in vertices]
-
-        # apply transforms
-        # no translate because it gets applied by body position later
-        vertices = camera.apply(vertices, translate=False)
-        angle += camera.theta
-
-        min1_x = min([v.x for v in vertices])
-        min1_y = min([v.y for v in vertices])
-        vertices = [Vec2d(v.x-min1_x, v.y-min1_y) for v in vertices]
-
-        height = max([v.y for v in vertices])
-        width = max([v.x for v in vertices])
-        # flip y to get pygame coordinates
-        vertices = [Vec2d(v.x, height-v.y) for v in vertices]
-
-        # ensure, min x and y is 0 by translating all vertices by min x and y
-        min2_y = min([v.y for v in vertices])
-        vertices = [Vec2d(v.x, v.y-min2_y) for v in vertices]
-
-        # create surface
-        surface = pygame.Surface((width, height), pygame.SRCALPHA)
-        surface.fill((0, 0, 0, 0)) # transparent initial surface
-        pygame.draw.polygon(surface, color, vertices, border)
-
-        # body coordinates translates in the same way as the vertices
-        # get_vertices() assumes body at (0, 0) and we translate it to (min1_x, min1_y)
-        center = Vec2d(0-min1_x, height-(0-min1_y)-min2_y)
-
-        if draw_options and draw_options.angle_line_width:
-            unit_vector = Vec2d(1, 0).rotated(angle) # add 180 degree to flip y
-            angle_vec = center + (unit_vector * (width + height) / 2.0)
-            pygame.draw.line(surface, color, center, angle_vec, border)
     else:
         raise ValueError(f"Unknown shape type: {type(shape)}")
 
-    # crop image outside of the shape
-    if image is not None:
-        # image without transformations
-        angle = shape.body.angle
-        if angle != 0:
-            image = pygame.transform.rotate(image, math.degrees(angle))
+    # add centroid that we will remove later
+    vertices.append(Vec2d(0, 0))
+    # add unit vector for angle line that we will remove later
+    vertices.append(Vec2d(1, 0))
 
-        image_rect = [(0, 0), (image.get_width(), 0),
-                      (image.get_width(), image.get_height()), (0, image.get_height())]
+    #first rotate these points
+    vertices = [v.rotated(shape.body.angle) for v in vertices]
 
+    # get vertices in global coordinates
+    vertices = [v + shape.body.position for v in vertices]
 
-        # apply scale and rotation
+    # apply camera transformations
+    vertices = camera.apply(vertices)
+    radius = radius * camera.scale if radius is not None else None
+
+    # flip y to get pygame coordinates
+    vertices = [Vec2d(v.x, screen.get_height()-v.y) for v in vertices]
+
+    # remove the centroid from the vertices
+    centroid, unit_vec = vertices[-2], vertices[-1].normalized()
+    vertices = vertices[:-2]
+
+    # draw the shape on shape surface
+    # we don't draw directly on screen as it doesn't support transparency
+    # get bounding rect of the shape
+    width, height, min_x, min_y, max_x, max_y = get_bounding_rect(vertices)
+    shape_surface = pygame.Surface((width, height), pygame.SRCALPHA)
+    shape_surface.fill((0, 0, 0, 0)) # transparent initial surface
+
+    if radius is not None:
+        pygame.draw.circle(shape_surface, color, (width/2., height/2.), radius, border)
+    else:
+        pygame.draw.polygon(shape_surface, color, [(v.x-min_x, v.y-min_y) for v in vertices], border)
+
+    shape_screen_offset = Vec2d(min_x, min_y)
+
+    # now we have the vertices in global pygame coordinates, let's figure out image
+    # prepare image if any
+    if costume is not None:
+        # create a mask for the shape
+        mask = pygame.Surface((width, height), pygame.SRCALPHA)
+        mask.fill((0, 0, 0, 0)) # transparent initial surface
+
+        # draw the shape on the mask with solid alpha to mask image later
+        solid_color = (255, 255, 255, 255)
+        if radius is not None:
+            pygame.draw.circle(mask, solid_color, (width/2, height/2), radius, border)
+        else:
+            pygame.draw.polygon(mask, solid_color, [(v.x-min_x, v.y-min_y) for v in vertices], border)
+
+        # get the image to draw on the shape
+        image = costume.get_image()
+
+        # apply camera scale to image
         if camera.scale != 1.0:
             image = pygame.transform.scale(image, (int(image.get_width()*camera.scale),
                                                    int(image.get_height()*camera.scale)))
-        if camera.theta != 0:
-            image = pygame.transform.rotate(image, math.degrees(camera.theta))
-
-        if image_paint_mode == ImagePaintMode.CENTER:
-            image_rect = camera.apply(image_rect, translate=False)
-            max_x, min_x = max([v.x for v in image_rect]), min([v.x for v in image_rect])
-            max_y, min_y = max([v.y for v in image_rect]), min([v.y for v in image_rect])
-            width, height = max_x - min_x, max_y - min_y
-            # recenter image on the shape
-            image_offset = center - Vec2d(width, height)/2.
-
-            surface.blit(image, image_offset)
+        if costume.paint_mode == ImagePaintMode.CENTER:
+            pass # no need to do anything
         else:
-            # Get the size of the texture image
-            texture_width, texture_height = image.get_size()
-            surface_width, surface_height = surface.get_size()
-            # Tile the image across the screen
-            for x in range(0, surface_width, texture_width):
-                for y in range(0, surface_height, texture_height):
-                    surface.blit(image, (x, y))
+            # create a surface to do tiling of same size as the shape
+            tiled_dest = pygame.Surface((width, height), pygame.SRCALPHA)
+            tiled_dest.fill((0, 0, 0, 0)) # transparent initial surface
+            # tile the image across the surface
+            tile_image(image, tiled_dest, (0, 0))
+            image = tiled_dest
 
-    if draw_options and draw_options.center_radius:
-        pygame.draw.circle(surface, draw_options.center_color,
-                           center, draw_options.center_radius, 0)
+        # apply body and camera rotation
+        angle = shape.body.angle + camera.theta
+        if angle != 0:
+            # add 180 degree to flip y
+            image = pygame.transform.rotate(image, math.degrees(angle)+180)
 
-    draw_texts(surface, texts)
+        # first draw image on the shape surface
+        # coordinates for this image are such that to match the centroid of the shape with the centroid of the image
+        abs_top_left = centroid - Vec2d(image.get_width()/2, image.get_height()/2)
+        rel_top_left = abs_top_left - shape_screen_offset
+        shape_surface.blit(image, rel_top_left)
+        # now mask the image
+        shape_surface.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
 
-    return surface, center
+    # draw debug line from centroid to angle
+    if draw_options and draw_options.angle_line_width:
+        line_len = max(width, height, 2) / 2.0
+        start_pos = centroid - shape_screen_offset
+        end_pos = start_pos + (unit_vec * line_len)
+        pygame.draw.line(shape_surface, draw_options.angle_line_color, start_pos, end_pos,
+                            round(draw_options.angle_line_width*camera.scale))
 
-def draw_texts(surface:pygame.Surface, texts:Dict[str, TextInfo]):
+    # finally blit the shape on the screen
+    screen.blit(shape_surface, shape_screen_offset)
+
+    draw_texts(screen, texts)
+
+
+def draw_texts(surface:pygame.Surface, texts:Dict[str, TextInfo], offset:Vec2d=Vec2d.zero()):
     for name, text_info in texts.items():
         font = pygame.font.Font(text_info.font_name, text_info.font_size)
         text_surface = font.render(text_info.text, True, text_info.color, text_info.background_color)
-        pos = tuple(text_info.pos)
+        pos = Vec2d(*text_info.pos) + offset
         surface.blit(text_surface, pos)
 
 def print_to(surface:pygame.Surface, text:str, topleft:Coordinates=Vec2d.zero(),
