@@ -270,8 +270,11 @@ class Camera:
         self.scaling_matrix = np.array([[self.scale, 0],
                                 [0, self.scale]])
 
-    def apply(self, points:Sequence[Coordinates],
+    def apply(self, points:List[Vec2d],
               translate=True, scale=True, rotate=True)->List[Vec2d]:
+        if self.angle == 0 and self.scale == 1.0 and self.bottom_left == Vec2d.zero():
+            return points
+
         points = np.array(points) # type: ignore
 
         if scale:
