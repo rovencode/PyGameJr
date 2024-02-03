@@ -629,6 +629,46 @@ def create_polygon(sides:int, width:int=20, height:int=20,
                 fixed_object=fixed_object, can_rotate=can_rotate, can_collide=can_collide,
                 velocity=velocity, angular_velocity=angular_velocity)
 
+def create_hud(width:Optional[float]=None, height:Optional[float]=None,
+                color:PyGameColor=(25, 25, 25, 50),
+                image_path:Union[str, Iterable[str]]=[],
+                bottom_left:Optional[Coordinates]=None,
+                center:Optional[Coordinates]=None,
+                angle=0.0, border=0,
+                transparent_color:Optional[PyGameColor]=None,
+                scale_xy:Tuple[float,float]=(1., 1.),
+                transparency_enabled:bool=True,
+                paint_mode:ImagePaintMode=ImagePaintMode.CENTER,
+                draw_options:Optional[DrawOptions]=None,
+                visible:bool=True,
+                density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
+                mass:Optional[float]=None, moment:Optional[float]=None,
+                fixed_object=False, can_rotate=False, can_collide=False,
+                velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
+    if width is None:
+        width = screen_width()
+    if height is None:
+        height = screen_height() / 10
+    if center is None and bottom_left is None:
+        bottom_left = (0, screen_height()-height)
+    return create_rect(width=width, height=height,
+                color=color,
+                image_path=image_path,
+                bottom_left=bottom_left,
+                center=center,
+                angle=angle, border=border,
+                transparent_color=transparent_color,
+                scale_xy=scale_xy,
+                transparency_enabled=transparency_enabled,
+                paint_mode=paint_mode,
+                draw_options=draw_options,
+                visible=visible,
+                density=density, elasticity=elasticity, friction=friction,
+                mass=mass, moment=moment,
+                fixed_object=fixed_object, can_rotate=can_rotate, can_collide=can_collide,
+                velocity=velocity, angular_velocity=angular_velocity)
+
+
 def create_screen_walls(left:Optional[Union[float, bool]]=None,
                         right:Optional[Union[float, bool]]=None,
                         top:Optional[Union[float, bool]]=None,
@@ -682,6 +722,7 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             fixed_object=fixed_object, can_rotate=can_rotate, can_collide=can_collide,
                             velocity=velocity, angular_velocity=angular_velocity)
     return bottom_wall, right_wall, top_wall, left_wall
+
 
 
 def start(screen_title:str=_screen_props.title,

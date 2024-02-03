@@ -30,6 +30,8 @@ class Actor:
         self.border = border
         self.draw_options = draw_options
         self.visible = visible
+        self._last_draw_time = timeit.default_timer()
+        self._last_dt = 0.
 
         self.texts:Dict[str, TextInfo] = {}
 
@@ -164,12 +166,13 @@ class Actor:
               font_name:Optional[str]=None, font_size:int=20,
               color:PyGameColor="black",
               background_color:Optional[PyGameColor]=None,
-              name:Optional[str]=None)->None:
+              name:Optional[str]=None)->TextInfo:
         if name is None:
             name = text
         self.texts[name] = TextInfo(text=text, pos=pos,
                                     font_name=font_name, font_size=font_size,
                                     color=color, background_color=background_color)
+        return self.texts[name]
 
     def remove_text(self, text:str, name:Optional[str]=None)->None:
         name = name or text
@@ -368,8 +371,18 @@ class Actor:
 
     def draw(self, screen:pygame.Surface, camera:Camera)->None:
         if self.visible:
+            texts = self.texts
+            if self.draw_options is not None:
+                if self.draw_options.fps_pos is not None:
+                    dt = timeit.default_timer() - self._last_draw_time
+                    self._last_draw_time = timeit.default_timer()
+                    texts = texts.copy()
+                    self._last_dt = 0.1*dt + 0.9*self._last_dt
+                    texts["fps"] = TextInfo(f"FPS: {1./self._last_dt:.1f}",
+                                            self.draw_options.fps_pos)
+
             draw_shape(screen, shape=self.shape,
-                                         texts=self.texts,
+                                         texts=texts,
                                          color=self.color,
                                          border=self.border,
                                          draw_options=self.draw_options,

@@ -160,6 +160,7 @@ class DrawOptions:
     angle_line_color:PyGameColor="black"
     center_radius:float=0
     center_color:PyGameColor="magenta"
+    fps_pos:Optional[Coordinates]=None
 
 class ImagePaintMode(Enum):
     CENTER = 1
@@ -459,10 +460,11 @@ def draw_shape(screen:pygame.Surface, shape:pymunk.Shape,
         pygame.draw.line(shape_surface, draw_options.angle_line_color, start_pos, end_pos,
                             round(draw_options.angle_line_width*camera.scale))
 
+    draw_texts(shape_surface, texts)
+
     # finally blit the shape on the screen
     screen.blit(shape_surface, shape_screen_offset)
 
-    draw_texts(screen, texts)
 
 
 def draw_texts(surface:pygame.Surface, texts:Dict[str, TextInfo], offset:Vec2d=Vec2d.zero()):
