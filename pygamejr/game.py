@@ -219,8 +219,8 @@ def create_image(image_path:Union[str, Iterable[str]],
                 visible:bool=True,
                 density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
                 mass:Optional[float]=None, moment:Optional[float]=None,
-                fixed_object=False, can_rotate=True,
-                velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
+                fixed_object=False, can_rotate=True, can_collide=True,
+                velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.,) -> Actor:
 
     if isinstance(image_path, str):
         image_path = [image_path]
@@ -267,6 +267,8 @@ def create_image(image_path:Union[str, Iterable[str]],
         shape.elasticity = elasticity
     if friction is not None:
         shape.friction = friction
+    if not can_collide:
+        shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
 
     space.add(body, shape)
     if not can_rotate:
@@ -301,7 +303,7 @@ def create_rect(width:float=20, height:float=20,
                 visible:bool=True,
                 density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
                 mass:Optional[float]=None, moment:Optional[float]=None,
-                fixed_object=False, can_rotate=True,
+                fixed_object=False, can_rotate=True, can_collide=True,
                 velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
 
     body_type = pymunk.Body.DYNAMIC if any(n is not None for n in (density, mass, moment)) else pymunk.Body.KINEMATIC
@@ -342,6 +344,8 @@ def create_rect(width:float=20, height:float=20,
         shape.elasticity = elasticity
     if friction is not None:
         shape.friction = friction
+    if not can_collide:
+        shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
 
     space.add(body, shape)
     if not can_rotate:
@@ -375,7 +379,7 @@ def create_circle(radius:float=20,
                 visible:bool=True,
                 density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
                 mass:Optional[float]=None, moment:Optional[float]=None,
-                fixed_object=False, can_rotate=True,
+                fixed_object=False, can_rotate=True, can_collide=True,
                 velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
 
     body_type = pymunk.Body.DYNAMIC if any(n is not None for n in (density, mass, moment)) else pymunk.Body.KINEMATIC
@@ -411,6 +415,8 @@ def create_circle(radius:float=20,
         shape.elasticity = elasticity
     if friction is not None:
         shape.friction = friction
+    if not can_collide:
+        shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
 
     space.add(body, shape)
     if not can_rotate:
@@ -445,7 +451,7 @@ def create_ellipse(width:int=20, height:int=20,
                 visible:bool=True,
                 density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
                 mass:Optional[float]=None, moment:Optional[float]=None,
-                fixed_object=False, can_rotate=True,
+                fixed_object=False, can_rotate=True, can_collide=True,
                 velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
 
     body_type = pymunk.Body.DYNAMIC if any(n is not None for n in (density, mass, moment)) else pymunk.Body.KINEMATIC
@@ -482,6 +488,8 @@ def create_ellipse(width:int=20, height:int=20,
         shape.elasticity = elasticity
     if friction is not None:
         shape.friction = friction
+    if not can_collide:
+        shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
 
     space.add(body, shape)
     if not can_rotate:
@@ -517,7 +525,7 @@ def create_polygon_any(points:Sequence[Coordinates],
                 visible:bool=True,
                 density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
                 mass:Optional[float]=None, moment:Optional[float]=None,
-                fixed_object=False, can_rotate=True,
+                fixed_object=False, can_rotate=True, can_collide=True,
                 velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
 
     body_type = pymunk.Body.DYNAMIC if any(n is not None for n in (density, mass, moment)) else pymunk.Body.KINEMATIC
@@ -563,6 +571,8 @@ def create_polygon_any(points:Sequence[Coordinates],
         shape.elasticity = elasticity
     if friction is not None:
         shape.friction = friction
+    if not can_collide:
+        shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
 
     space.add(body, shape)
     if not can_rotate:
@@ -597,7 +607,7 @@ def create_polygon(sides:int, width:int=20, height:int=20,
                 visible:bool=True,
                 density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
                 mass:Optional[float]=None, moment:Optional[float]=None,
-                fixed_object=False, can_rotate=True,
+                fixed_object=False, can_rotate=True, can_collide=True,
                 velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
 
     points = common.polygon_points(sides, 0, 0, width, height)
@@ -616,7 +626,7 @@ def create_polygon(sides:int, width:int=20, height:int=20,
                 visible=visible,
                 density=density, elasticity=elasticity, friction=friction,
                 mass=mass, moment=moment,
-                fixed_object=fixed_object, can_rotate=can_rotate,
+                fixed_object=fixed_object, can_rotate=can_rotate, can_collide=can_collide,
                 velocity=velocity, angular_velocity=angular_velocity)
 
 def create_screen_walls(left:Optional[Union[float, bool]]=None,
@@ -627,10 +637,9 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                         width:int=1, border=0, transparency_enabled:bool=False,
                         extra_length:float=0.,
                         density:Optional[float]=None, elasticity:Optional[float]=None,
+                        fixed_object=True, can_rotate=False, can_collide=True,
                         friction:Optional[float]=None) -> Tuple[Optional[Actor], Optional[Actor], Optional[Actor], Optional[Actor]]:
 
-    fixed_object=True
-    can_rotate=True
     velocity:Vector2=Vec2d.zero()
     angular_velocity:float=0.
 
@@ -646,7 +655,7 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
-                            fixed_object=fixed_object, can_rotate=can_rotate,
+                            fixed_object=fixed_object, can_rotate=can_rotate, can_collide=can_collide,
                             velocity=velocity, angular_velocity=angular_velocity)
     if right is not None:
         right_wall = create_rect(width=width, height=screen_height()+extra_length,
@@ -654,7 +663,7 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
-                            fixed_object=fixed_object, can_rotate=can_rotate,
+                            fixed_object=fixed_object, can_rotate=can_rotate, can_collide=can_collide,
                             velocity=velocity, angular_velocity=angular_velocity)
     if top is not None:
         top_wall = create_rect(width=screen_width()+extra_length, height=width,
@@ -662,7 +671,7 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
-                            fixed_object=fixed_object, can_rotate=can_rotate,
+                            fixed_object=fixed_object, can_rotate=can_rotate, can_collide=can_collide,
                             velocity=velocity, angular_velocity=angular_velocity)
     if bottom is not None:
         bottom_wall = create_rect(width=screen_width()+extra_length, height=width,
@@ -670,7 +679,7 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
-                            fixed_object=fixed_object, can_rotate=can_rotate,
+                            fixed_object=fixed_object, can_rotate=can_rotate, can_collide=can_collide,
                             velocity=velocity, angular_velocity=angular_velocity)
     return bottom_wall, right_wall, top_wall, left_wall
 
@@ -707,9 +716,8 @@ def start(screen_title:str=_screen_props.title,
 
     # create No One actor to handle global events, put it offscreen
     noone = create_rect(width=1, height=1,
-                        color=(0, 0, 0, 0), bottom_left=(-1000,-1000), visible=False)
-    # this body doesn't collide with anything
-    noone.shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
+                        color=(0, 0, 0, 0), bottom_left=(-1000,-1000),
+                        visible=False, can_collide=False)
 
 def remove(actor:Actor):
     global _camera_follow
