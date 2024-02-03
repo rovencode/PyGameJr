@@ -56,7 +56,7 @@ _actors_handlers:Dict[int, Set[Actor]] = {}
 _running = False # is game currently running?
 _default_poly_radius = 1
 _sounds:Dict[str, pygame.mixer.Sound] = {} # sounds
-_physics_fps_multiplier = 8
+_physics_fps_multiplier = 16
 
 @dataclass
 class ScreenProps:
@@ -731,7 +731,7 @@ def start(screen_title:str=_screen_props.title,
           screen_color:PyGameColor=_screen_props.color,
           screen_image_path:Optional[str]=_screen_props.image_path,
           screen_fps=_screen_props.fps,
-          physics_fps_multiplier:int=8,
+          physics_fps_multiplier:int=16,
           gravity:Optional[Union[float, Vector2]]=None):
 
     global  _running, screen, draw_options, noone, _physics_fps_multiplier

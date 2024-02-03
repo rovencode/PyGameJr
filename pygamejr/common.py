@@ -376,7 +376,8 @@ def draw_shape(screen:pygame.Surface, shape:pymunk.Shape,
     vertices.append(Vec2d(1, 0))
 
     #first rotate these points
-    vertices = [v.rotated(shape.body.angle) for v in vertices]
+    if shape.body.angle != 0:
+        vertices = [v.rotated(shape.body.angle) for v in vertices]
 
     # get vertices in global coordinates
     vertices = [v + shape.body.position for v in vertices]
@@ -453,7 +454,7 @@ def draw_shape(screen:pygame.Surface, shape:pymunk.Shape,
 
     # draw debug line from centroid to angle
     if draw_options and draw_options.angle_line_width:
-        line_len = max(width, height, 2) / 2.0
+        line_len = max(width, height, 2) / 2.0 if radius is None else radius
         start_pos = centroid - shape_screen_offset
         end_pos = start_pos + (unit_vec * line_len)
         pygame.draw.line(shape_surface, draw_options.angle_line_color, start_pos, end_pos,
