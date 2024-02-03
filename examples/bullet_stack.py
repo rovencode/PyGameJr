@@ -1,6 +1,6 @@
 from pygamejr import game, DrawOptions
 
-game.start(gravity=-900, screen_fps=250)
+game.start(gravity=-900)
 
 ground = 200
 # create table

@@ -14,7 +14,7 @@ from pygamejr import utils
 from pygamejr import common
 from pygamejr.actor import Actor
 from pygamejr.common import PyGameColor, DrawOptions, Coordinates, Vector2, \
-                            ImagePaintMode, Camera, CameraControls
+                            ImagePaintMode, Camera, CameraControls, TextInfo
 
 TRANSPARENT_COLOR = (0, 0, 0, 0)
 
@@ -56,7 +56,7 @@ _actors_handlers:Dict[int, Set[Actor]] = {}
 _running = False # is game currently running?
 _default_poly_radius = 1
 _sounds:Dict[str, pygame.mixer.Sound] = {} # sounds
-_physics_fps_multiplier = 16
+_physics_fps_multiplier = 4
 
 @dataclass
 class ScreenProps:
@@ -108,11 +108,11 @@ def screen_center()->Tuple[float, float]:
 def add_text(text:str, at:Optional[Coordinates]=None,
              font_name:Optional[str]=None, font_size:int=20,
              color:PyGameColor="black", background_color:Optional[PyGameColor]=None,
-             name:Optional[str]=None):
+             name:Optional[str]=None)->TextInfo:
     """Print text at position"""
     assert screen is not None, "screen is None"
     at = at if at is not None else screen_center()
-    noone.add_text(text=text, pos=at, font_name=font_name, font_size=font_size,
+    return noone.add_text(text=text, pos=at, font_name=font_name, font_size=font_size,
                    color=color, background_color=background_color, name=name)
 
 def remove_text(text:str, name:Optional[str]=None):
@@ -731,7 +731,7 @@ def start(screen_title:str=_screen_props.title,
           screen_color:PyGameColor=_screen_props.color,
           screen_image_path:Optional[str]=_screen_props.image_path,
           screen_fps=_screen_props.fps,
-          physics_fps_multiplier:int=16,
+          physics_fps_multiplier:int=4,
           gravity:Optional[Union[float, Vector2]]=None):
 
     global  _running, screen, draw_options, noone, _physics_fps_multiplier
@@ -829,7 +829,7 @@ def update():
 
     # first call physics so manual overrides can happen later
     # use fixed fps for dt instead of actual dt
-    physics_fps = _screen_props.fps * _physics_fps_multiplier * 0.25
+    physics_fps = _screen_props.fps * _physics_fps_multiplier
     for _ in range(_physics_fps_multiplier):
         space.step(1.0 / physics_fps)
 
