@@ -56,7 +56,7 @@ _actors_handlers:Dict[int, Set[Actor]] = {}
 _running = False # is game currently running?
 _default_poly_radius = 1
 _sounds:Dict[str, pygame.mixer.Sound] = {} # sounds
-_physics_fps_multiplier = 4
+_physics_fps_multiplier = 8
 
 @dataclass
 class ScreenProps:

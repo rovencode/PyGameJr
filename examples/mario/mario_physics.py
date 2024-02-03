@@ -1,7 +1,6 @@
 import random
 from pygamejr import game, ImagePaintMode, Vec2d
 
-game.show_mouse_coordinates = True
 game.set_camera_controls(True)
 game.start(screen_title="Mario Animation", screen_image_path="background.jpg",
            gravity=-900)
@@ -15,7 +14,7 @@ mario = game.create_image(image_path=["mario1.png", "mario2.png", "mario3.png"],
                           bottom_left=(100,200), scale_xy=(0.5, 0.5),
                           density=1, elasticity=0.6, friction=0.1, can_rotate=False)
 mario.start_animation(frame_time_s=0.2)
-#game.camera_follow(mario)
+game.camera_follow(mario)
 
 # create platforms
 platforms = []
@@ -35,14 +34,14 @@ game.play_sound('music.mp3', loops=-1)
 
 def mario_keyboard(mario, keys):
     if "left" in keys:
-        mario.apply_impulse((-100000, 0))
+        mario.apply_impulse((-1000000, 0))
     elif "right" in keys:
-        mario.apply_impulse((100000, 0))
+        mario.apply_impulse((1000000, 0))
     elif "up" in keys:
-        mario.apply_impulse((0, 500000))
+        mario.apply_impulse((0, 1000000))
         game.play_sound('jump.mp3')
     elif "down" in keys:
-        mario.apply_impulse((0, -10000))
+        mario.apply_impulse((0, -100000))
 game.handle(mario.on_keypress, mario_keyboard)
 
 game.keep_running()
