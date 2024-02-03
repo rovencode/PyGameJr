@@ -13,7 +13,6 @@ https://github.com/mx0c/super-mario-python/blob/master/classes/Sprites.py
 
 ## Algo
 
-1. Take points with body centeroid to zero
 Coordinate systems:
 -	b_local_0  Body local without rotation
 -	b_local  Body local with rotation
@@ -36,7 +35,7 @@ Coordinate systems:
 13.	 Draw image at zs – (w,h)/2 for draw mode = center
 14.	Draw surface on screen at top_left
 
-     For tiling:
+     For iimage:
 1.	Take points centered at (0,0
 2.	Apply camera scale
 3.	Calculate box
@@ -44,4 +43,3 @@ Coordinate systems:
 5.	Scale image by given factor * camera factor
 6.	Tile or center on surface
 7.	Rotate by body angle + camera angle
-
