@@ -134,6 +134,9 @@ class AnimationSpec:
     started:bool=False
     image_index:int=0
 
+    def __post_init__(self):
+        pass
+
     def start(self, loop:bool=True, from_index=0, frame_time_s:float=0.1):
         self.started = True
         self.loop = loop
@@ -194,7 +197,7 @@ class CostumeSpec:
     _images:List[pygame.Surface]=field(default_factory=list)
     _scaled_images:List[pygame.Surface]=field(default_factory=list)
     paint_mode:ImagePaintMode=ImagePaintMode.CENTER
-    animation = AnimationSpec()
+    animation:AnimationSpec = field(default_factory=AnimationSpec)
 
     @property
     def scale_xy(self)->Tuple[float,float]:

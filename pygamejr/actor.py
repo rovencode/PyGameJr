@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Set, Tuple, Union, Iterable, Callable, Sequence, Sized
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, Iterable, Callable, Sequence, Sized, Iterator
 import math
 import timeit
 
@@ -45,7 +45,7 @@ class Actor:
                             paint_mode=image_paint_mode,
                             change=True)
 
-    def start_animation(self, loop:bool=True, from_index=0, frame_time_s:float=0.1):
+    def start_animation(self, loop:bool=True, from_index=0, frame_time_s:float=0.2):
         if self.current_costume is not None:
             self.current_costume.animation.start(loop, from_index, frame_time_s)
     def stop_animation(self):
@@ -211,14 +211,21 @@ class Actor:
         target_vector = Vec2d(*xy) - self.shape.body.position
         self.shape.body.angle = target_vector.angle
 
+    @property
+    def surface_velocity(self)->Vec2d:
+        return self.shape.surface_velocity
+    @surface_velocity.setter
+    def surface_velocity(self, value:Vec2d):
+        self.shape.surface_velocity = value
+
     def touches_at(self, point:Coordinates)->bool:
         query_result = self.shape.point_query(point)
         return query_result.distance <= 0
 
 
-    def touches(self, other:Optional[Union['Actor', Sequence['Actor']]])->Union[List['Actor'], List[pymunk.ShapeQueryInfo]]:
+    def touches(self, other:Optional[Union['Actor', Sequence['Actor']]])->bool:
         if self.shape.space is None:
-            return []
+            return False
 
         colliding_shapes = self.shape.space.shape_query(self.shape)
 
@@ -228,10 +235,10 @@ class Actor:
             other = [other]
 
         if len(other) == 0:
-            return colliding_shapes
+            return len(colliding_shapes) > 0
         else:
             other_shapes = {o.shape:o for o in other}
-            return [other_shapes[s.shape] for s in colliding_shapes if s.shape in other_shapes]
+            return any(other_shapes[s.shape] for s in colliding_shapes if s.shape in other_shapes)
 
     def distance_to(self, xy:Coordinates)->float:
         """Return the distance to another sprite."""
@@ -314,9 +321,21 @@ class Actor:
         space.add(self.shape)
 
 
+    def is_grounded(self)->bool:
+        if self.shape.space is None:
+            return False
+
+        colliding_shapes = self.shape.space.shape_query(self.shape)
+
+        for s in colliding_shapes:
+            if s.shape is not None and s.shape.body is not None and s.shape.body != self.shape.body:
+                n = s.contact_point_set.normal
+                if n.y > 0:
+                    return True
+        return False
+
     def get_grounding(self)->Grounding:
         grounding = Grounding()
-        other_body:Optional[pymunk.Body] = None
         def f(arbitrater):
             n = arbitrater.contact_point_set.normal
             if n.y > grounding.normal.y:

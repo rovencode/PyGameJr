@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional, Set, Dict, Any, Union, Callable, Iterable, Sequence
+from typing import List, Tuple, Optional, Set, Dict, Any, Union, Callable, Iterable, Sequence, Iterator
 import random
 import math
 from dataclasses import dataclass
@@ -51,6 +51,7 @@ class CameraFollow:
 
 # private variables
 _actors:Set[Actor] = set() # list of all actors
+_body_to_actor:Dict[pymunk.Body, Actor] = {} # map from pymunk body to actor
 _camera_follow:CameraFollow = CameraFollow() # actor to follow with camera
 # for each handler type, keep list of actors that have that handler
 _actors_handlers:Dict[int, Set[Actor]] = {}
@@ -94,6 +95,10 @@ def keep_running():
     while _running:
         update()
 
+def screen_fps()->int:
+    return _screen_props.fps
+def physics_fps()->int:
+    return _screen_props.fps*_physics_fps_multiplier
 def screen_top()->int:
     return _screen_props.height
 def screen_bottom()->int:
@@ -291,8 +296,21 @@ def create_image(image_path:Union[str, Iterable[str]],
                   draw_options=draw_options,)
 
     _actors.add(actor)
+    _body_to_actor[shape.body] = actor
 
     return actor
+
+def touches_who(actor:Actor)->Iterator[Tuple[Actor, pymunk.ContactPointSet]]:
+    """Return set of actors that actor touches"""
+    if actor.shape.space is None:
+        return
+
+    colliding_shapes = actor.shape.space.shape_query(actor.shape)
+
+    for s in colliding_shapes:
+        if s.shape is not None and s.shape.body is not None and s.shape.body != actor.shape.body:
+            yield (_body_to_actor[s.shape.body], s.contact_point_set)
+
 
 def create_rect(width:float=20, height:float=20,
                 color:PyGameColor="red",
@@ -367,6 +385,7 @@ def create_rect(width:float=20, height:float=20,
                   draw_options=draw_options,)
 
     _actors.add(actor)
+    _body_to_actor[shape.body] = actor
 
     return actor
 
@@ -439,6 +458,7 @@ def create_circle(radius:float=20,
                   draw_options=draw_options,)
 
     _actors.add(actor)
+    _body_to_actor[shape.body] = actor
 
     return actor
 
@@ -512,6 +532,7 @@ def create_ellipse(width:int=20, height:int=20,
                   draw_options=draw_options,)
 
     _actors.add(actor)
+    _body_to_actor[shape.body] = actor
 
     return actor
 
@@ -595,6 +616,7 @@ def create_polygon_any(points:Sequence[Coordinates],
                   draw_options=draw_options,)
 
     _actors.add(actor)
+    _body_to_actor[shape.body] = actor
 
     return actor
 
@@ -679,7 +701,7 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                         top:Optional[Union[float, bool]]=None,
                         bottom:Optional[Union[float, bool]]=None,
                         color:PyGameColor=(0, 0, 0, 0),
-                        width:int=1, border=0, transparency_enabled:bool=False,
+                        width:int=100, border=0, transparency_enabled:bool=False,
                         extra_length:float=0.,
                         density:Optional[float]=None, elasticity:Optional[float]=None,
                         fixed_object=True, can_rotate=False, can_collide=True,
@@ -696,7 +718,7 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
     left_wall, right_wall, top_wall, bottom_wall = None, None, None, None
     if left is not None:
         left_wall = create_rect(width=width, height=screen_height()+extra_length,
-                            bottom_left=(left, 0-extra_length/2.),
+                            bottom_left=(left-width-1, 0-extra_length/2.),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
@@ -720,7 +742,7 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             velocity=velocity, angular_velocity=angular_velocity)
     if bottom is not None:
         bottom_wall = create_rect(width=screen_width()+extra_length, height=width,
-                            bottom_left=(0-extra_length/2., bottom),
+                            bottom_left=(0-extra_length/2., bottom-width-1),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
@@ -771,6 +793,9 @@ def remove(actor:Actor):
     if _camera_follow.actor == actor:
         camera_follow(None)
     _actors.remove(actor)
+    for event_code, actors in _actors_handlers.items():
+        actors.discard(actor)
+    _body_to_actor.pop(actor.shape.body, None)
     space.remove(actor.shape, actor.shape.body)
 
 def screen_size()->Tuple[int, int]:
@@ -824,6 +849,9 @@ def mouse_button_name(button:int)->str:
         return "right"
     else:
         return str(button)
+
+def key_pressed()->Set[str]:
+    return down_keys
 
 def update():
     global _running, screen

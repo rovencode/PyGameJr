@@ -48,6 +48,14 @@
             "name": "mario animation",
             "type": "python",
             "request": "launch",
+            "program": "examples/mario/mario_physics.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "mario animation",
+            "type": "python",
+            "request": "launch",
             "program": "examples/mario/animation.py",
             "console": "integratedTerminal",
             "justMyCode": true
