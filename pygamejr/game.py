@@ -225,7 +225,7 @@ def create_image(image_path:Union[str, Iterable[str]],
                 visible:bool=True, colliision_group:Optional[int]=None, collision_type:Optional[int]=None,
                 density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
                 mass:Optional[float]=None, moment:Optional[float]=None,
-                fixed_object=True, can_rotate=True, can_collide=True,
+                fixed_object=False, can_rotate=True, can_collide=True,
                 velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.,) -> Actor:
 
     if isinstance(image_path, str):
@@ -408,7 +408,7 @@ def create_line(start_pt:Coordinates,
                 visible:bool=True, colliision_group:Optional[int]=None, collision_type:Optional[int]=None,
                 density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
                 mass:Optional[float]=None, moment:Optional[float]=None,
-                fixed_object=False, can_rotate=True, can_collide=True,
+                fixed_object=True, can_rotate=True, can_collide=True,
                 velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
 
     body_type = pymunk.Body.DYNAMIC if any(n is not None for n in (density, mass, moment)) else pymunk.Body.KINEMATIC
@@ -822,7 +822,7 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             velocity=velocity, angular_velocity=angular_velocity)
     if right is not None:
         right_wall = create_rect(width=width, height=screen_height()+extra_length,
-                            bottom_left=(screen_width()-right-border*2-width-1, 0-extra_length/2.),
+                            bottom_left=(screen_width()-right-border*2, 0-extra_length/2.),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
@@ -832,7 +832,7 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             velocity=velocity, angular_velocity=angular_velocity)
     if top is not None:
         top_wall = create_rect(width=screen_width()+extra_length, height=width,
-                            bottom_left=(0-extra_length/2., screen_height()-top-border*2-width-1),
+                            bottom_left=(0-extra_length/2., screen_height()-top-border*2),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
@@ -842,7 +842,7 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             velocity=velocity, angular_velocity=angular_velocity)
     if bottom is not None:
         bottom_wall = create_rect(width=screen_width()+extra_length, height=width,
-                            bottom_left=(0-extra_length/2., bottom-width-1),
+                            bottom_left=(0-extra_length/2., bottom-width-border*2),
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,

@@ -7,10 +7,11 @@ PLAYER_VELOCITY = 600
 # where is the ground level in image pixels
 GROUND_Y = 112
 
-game.set_camera_controls(True)
 game.start(screen_title="Mario Animation",
            screen_image_path="background.jpg",
            gravity=-900)
+
+game.play_sound('music.mp3')
 
 # create ground
 ground = game.create_screen_walls(bottom=GROUND_Y, friction=1.0,
@@ -76,8 +77,6 @@ for i in range(5):
     game.create_circle(25, color=game.common.random_color(),
                        center=(1400+200, 250 + i*50),
                        density=0.0001, friction=0.2, draw_options=game.DrawOptions(angle_line_width=1))
-
-
 
 while game.is_running():
     keys = game.key_pressed()
