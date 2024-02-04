@@ -5,6 +5,7 @@ import math
 import os
 import timeit
 from enum import Enum
+import random
 
 import numpy as np
 
@@ -524,3 +525,29 @@ def tiled_blit(source:pygame.Surface, start_xy:Tuple[float, float], dest:pygame.
     for x in range(round(start_x), dest_width, source_width):
         for y in range(round(start_y), dest_height, source_height):
             dest.blit(source, (x, y))
+
+def random_color(random_alpha=False)->PyGameColor:
+    return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255),
+            random.randint(0, 255) if random_alpha else 255)
+
+def is_second_rect_outside(xy1, xy2, xy1_prime, xy2_prime):
+    """
+    Check if the second rectangle has any part outside the first rectangle.
+
+    Parameters:
+    - first_rect: Tuple of (x1, y1, x2, y2) representing the first rectangle.
+    - second_rect: Tuple of (x1', y1', x2', y2') representing the second rectangle.
+
+    Returns:
+    - True if the second rectangle has any part outside the first one, otherwise False.
+    """
+    x1, y1 = xy1
+    x2, y2 = xy2
+    x1_prime, y1_prime = xy1_prime  # Unpack the second rectangle coordinates
+    x2_prime, y2_prime = xy2_prime  # Unpack the second rectangle coordinates
+
+    # Check if the second rectangle is outside the first rectangle in any direction
+    if x1_prime < x1 or x2_prime > x2 or y1_prime < y1 or y2_prime > y2:
+        return True
+    else:
+        return False

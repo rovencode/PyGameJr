@@ -44,8 +44,8 @@ noone:Actor = None # type: ignore
 class CameraFollow:
     actor:Optional['Actor']=None
     offset:Vec2d=Vec2d.zero()
-    min_distance:float=100
-    speed:float=50
+    min_distance:float=10
+    speed:float=100
     min_angle:float=5
     angle_speed:float=1
 
@@ -129,10 +129,6 @@ def remove_text(text:str, name:Optional[str]=None):
     """Remove text from screen"""
     noone.remove_text(text=text, name=name)
 
-def random_color(random_alpha=False)->PyGameColor:
-    return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255),
-            random.randint(0, 255) if random_alpha else 255)
-
 def set_camera_controls(controls:Optional[Union[bool, CameraControls]]=None):
     global camera_controls
     camera_controls = (CameraControls() if controls else None) if isinstance(controls, bool) else controls
@@ -212,7 +208,7 @@ def handle(event_method:Callable, handler:Callable)->None:
 
 # TODO: replace asserts with exceptions
 
-def camera_follow(actor:Optional[Actor]=None):
+def camera_follow_actor(actor:Optional[Actor]=None):
     global _camera_follow
     _camera_follow.actor = actor
     _camera_follow.offset = Vec2d(*actor.bottomleft()) if actor else Vec2d.zero()
@@ -791,7 +787,7 @@ def remove(actor:Actor):
     global _camera_follow
     """Remove actor from game"""
     if _camera_follow.actor == actor:
-        camera_follow(None)
+        camera_follow_actor(None)
     _actors.remove(actor)
     for event_code, actors in _actors_handlers.items():
         actors.discard(actor)
@@ -867,10 +863,20 @@ def update():
         space.step(1.0 / physics_fps)
 
     if _camera_follow.actor:
-        ds = ((_camera_follow.actor.bottomleft()-_camera_follow.offset)-camera.bottom_left)
-        if ds.length > _camera_follow.min_distance:
-            ds = ds.normalized() * _camera_follow.speed
-            camera.move_by(ds)
+        camera_view_bottomleft = camera.bottom_left
+        camera_view_topright = camera.bottom_left + Vec2d(screen_width(), screen_height())
+
+        # create smaller view to accomodate full actor
+        actor_dim = Vec2d(_camera_follow.actor.width(), _camera_follow.actor.height())
+        camera_view_bottomleft += actor_dim
+        camera_view_topright -= actor_dim
+
+        if common.is_second_rect_outside(camera_view_bottomleft, camera_view_topright,
+                                         _camera_follow.actor.bottomleft(), _camera_follow.actor.topright()):
+            ds = ((_camera_follow.actor.bottomleft()-_camera_follow.offset)-camera.bottom_left)
+            if ds.length > _camera_follow.min_distance:
+                ds = ds.normalized() * _camera_follow.speed
+                camera.move_by(ds)
         d_angle = _camera_follow.actor.angle - camera.angle
         if abs(d_angle) > _camera_follow.min_angle:
             camera.turn_to(d_angle * _camera_follow.angle_speed)
@@ -949,9 +955,9 @@ def update():
                 (int(bg_image.get_width()*camera.scale),
                     int(bg_image.get_height()*camera.scale)))
         if camera.bottom_left != (0, 0):
-            start_x = (camera.bottom_left[0] % bg_image.get_width()) * bg_image.get_width() - camera.bottom_left[0]
-            start_y = (camera.bottom_left[1] % bg_image.get_height()) * bg_image.get_height() - camera.bottom_left[1]
-            bg_topleft = start_x, screen_height() - start_y # flipped y
+            start_x = camera.bottom_left[0] - (camera.bottom_left[0] // bg_image.get_width()) * bg_image.get_width()
+            start_y = camera.bottom_left[1] - (camera.bottom_left[1] // bg_image.get_height()) * bg_image.get_height()
+            bg_topleft = start_x, start_y # flipped y
         else:
             bg_topleft = Vec2d(0, 0)
         common.tiled_blit(bg_image, bg_topleft, screen)

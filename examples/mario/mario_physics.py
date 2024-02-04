@@ -2,7 +2,9 @@ import random
 import math
 from pygamejr import game, ImagePaintMode, Vec2d
 
+# constants for how fast Mario can move and jump
 PLAYER_VELOCITY = 800
+# where is the ground level in image pixels
 GROUND_Y = 112
 
 game.set_camera_controls(True)
@@ -11,14 +13,15 @@ game.start(screen_title="Mario Animation",
            gravity=-900)
 
 # create ground
-ground = game.create_screen_walls(bottom=GROUND_Y, friction=1.0, extra_length=4000)[0]
+ground = game.create_screen_walls(bottom=GROUND_Y, friction=1.0,
+                                  extra_length=20000)[0]
 
 # create Mario
 mario = game.create_image(image_path=["mario1.png", "mario2.png", "mario3.png"],
                           bottom_left=(100,200), scale_xy=(0.5, 0.5),
                           mass=5, can_rotate=False)
 mario.start_animation()
-#game.camera_follow(mario)
+game.camera_follow_actor(mario)
 
 # create platforms
 platforms = []
@@ -29,7 +32,7 @@ for i in range(2):
                     scale_xy=(0.5, 0.5),
                     density=1, friction=1.0, fixed_object=True)
     platforms.append(platform)
-    pos += Vec2d(random.randint(300, 300), random.randint(-100, 100))
+    pos += Vec2d(random.randint(300, 800), random.randint(-100, 100))
     if pos.y < GROUND_Y:
         pos = Vec2d(pos.x, GROUND_Y + 100)
 

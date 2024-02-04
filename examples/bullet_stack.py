@@ -19,7 +19,7 @@ for x in range(5):
     for y in range(10):
         game.create_rect(bottom_left=(500 + x*50,  ground + y*20),
                          width=20, height=20,
-                         color=game.random_color(),
+                         color=game.common.random_color(),
                          mass=10, friction=0.3)
 
 def on_keypress(noone, keys):
