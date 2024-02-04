@@ -748,7 +748,8 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
 
 
 def create_pin_joint(actor1:Union[Actor, pymunk.Body], actor2:Union[Actor, Coordinates, pymunk.Body],
-                     anchor1:Coordinates=Vec2d.zero(), anchor2:Coordinates=Vec2d.zero())->pymunk.constraints.PinJoint:
+                     anchor1:Coordinates=Vec2d.zero(), anchor2:Coordinates=Vec2d.zero(),
+                     angle_offset:float=0)->pymunk.constraints.PinJoint:
     """Create pivot joint between two actors"""
 
     if isinstance(actor1, Actor):
@@ -761,8 +762,14 @@ def create_pin_joint(actor1:Union[Actor, pymunk.Body], actor2:Union[Actor, Coord
     elif isinstance(actor2, pymunk.Body):
         body2 = actor2
     else: # create kinematic body that doesn't participate in physics
-        body2 = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
-        body2.position = Vec2d(*actor2)
+        ball = create_circle(15, color="blue", center=Vec2d(*actor2), angle=body1.angle,
+                             draw_options = DrawOptions(angle_line_width=1, angle_line_color="red")
+                             )
+        body2 = ball.shape.body
+        # body2 = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
+        # body2.position = Vec2d(*actor2)
+        # body2.angle = body1.angle
+        # body2.angle += angle_offset
 
     joint = pymunk.constraints.PinJoint(body1, body2, anchor1, anchor2)
     space.add(joint)

@@ -327,7 +327,7 @@ class Camera:
         self._update_transform()
 
 
-def rectangle_from_line(p1:Vec2d, p2:Vec2d)->List[Vec2d]:
+def rectangle_from_line(p1:Vec2d, p2:Vec2d, width=1.0)->List[Vec2d]:
     """Create a rectangle around a line of width 1."""
     # Calculate the vector representing the line
     line_vec = p2 - p1
@@ -336,13 +336,13 @@ def rectangle_from_line(p1:Vec2d, p2:Vec2d)->List[Vec2d]:
     perp_vec = Vec2d(-line_vec[1], line_vec[0])
 
     # Normalize and scale the perpendicular vector to half the rectangle's width
-    perp_vec = perp_vec / perp_vec.length * 0.5
+    perp_vec = perp_vec / perp_vec.length * width/2.0
 
     # Calculate the four corners of the rectangle
-    corner1 = p1 + perp_vec
-    corner4 = p2 + perp_vec
-    corner3 = p2 - perp_vec
-    corner2 = p1 - perp_vec
+    corner1 = p2 + perp_vec
+    corner2 = p1 + perp_vec
+    corner3 = p1 - perp_vec
+    corner4 = p2 - perp_vec
 
     return [corner1, corner2, corner3, corner4]
 
@@ -538,12 +538,17 @@ def draw_vertices(screen:pygame.Surface, vertices:List[Vec2d],
         shape_surface.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
 
     # draw debug line from centroid to angle
-    if draw_options and draw_options.angle_line_width:
-        line_len = max(width, height, 2) / 2.0 if radius is None else radius
-        start_pos = centroid - shape_screen_offset
-        end_pos = start_pos + (unit_vec * line_len)
-        pygame.draw.line(shape_surface, draw_options.angle_line_color, start_pos, end_pos,
-                            round(draw_options.angle_line_width*camera.scale))
+    if draw_options:
+        if draw_options.angle_line_width:
+            line_len = max(width, height, 2) / 2.0 if radius is None else radius
+            start_pos = centroid - shape_screen_offset
+            end_pos = start_pos + (unit_vec * line_len)
+            pygame.draw.line(shape_surface, draw_options.angle_line_color, start_pos, end_pos,
+                                round(draw_options.angle_line_width*camera.scale))
+        if draw_options.center_radius:
+            pygame.draw.circle(shape_surface, draw_options.center_color,
+                               centroid - shape_screen_offset,
+                               round(draw_options.center_radius*camera.scale))
 
     draw_texts(shape_surface, texts)
 
