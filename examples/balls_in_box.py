@@ -12,7 +12,7 @@ for i in range(30):
                               density=1, elasticity=1,
                               velocity=(random.uniform(-200, 200),
                                         random.uniform(-200, 200)),
-                              angular_velocity=random.uniform(-5, 5))
+                              angular_velocity=random.uniform(-50, 50))
     ball1.fit_image()
 
 
