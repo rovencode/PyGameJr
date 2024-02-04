@@ -3,7 +3,7 @@ import math
 from pygamejr import game, ImagePaintMode, Vec2d
 
 # constants for how fast Mario can move and jump
-PLAYER_VELOCITY = 800
+PLAYER_VELOCITY = 600
 # where is the ground level in image pixels
 GROUND_Y = 112
 
@@ -49,7 +49,7 @@ while game.is_running():
     if "right" in keys:
         x_velocity = PLAYER_VELOCITY
     if "up" in keys:
-        jump_velocity = math.sqrt(1.0 * 48 * abs(game.gravity().y))
+        jump_velocity = math.sqrt(1.0 * 3 * abs(game.gravity().y))
         impulse = (0, mario.mass * (jump_velocity))
         mario.apply_impulse(impulse)
         game.play_sound('jump.mp3')

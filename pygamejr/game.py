@@ -45,7 +45,7 @@ class CameraFollow:
     actor:Optional['Actor']=None
     offset:Vec2d=Vec2d.zero()
     min_distance:float=10
-    speed:float=100
+    speed:float=10
     min_angle:float=5
     angle_speed:float=1
 
