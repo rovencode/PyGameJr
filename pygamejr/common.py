@@ -1,4 +1,4 @@
-from typing import Optional, List, Tuple, Dict, Union, Sequence, Iterable
+from typing import Optional, List, Tuple, Dict, Union, Sequence, Iterable, Iterator
 from collections import namedtuple
 from dataclasses import dataclass, field
 import math
@@ -576,17 +576,22 @@ def draw_shape(screen:pygame.Surface, shape:pymunk.Shape,
         vertices = [Vec2d(shape.radius, shape.radius), Vec2d(shape.radius, -shape.radius),
                     Vec2d(-shape.radius, -shape.radius), Vec2d(-shape.radius, shape.radius)]
         radius = shape.radius
+    elif isinstance(shape, pymunk.Segment):
+        vertices = [shape.a, shape.b]
     else:
         raise ValueError(f"Unknown shape type: {type(shape)}")
 
     draw_vertices(screen=screen, vertices=vertices,
                  is_local=True,
-                 polygone_or_lines=True,
+                 polygone_or_lines=len(vertices) > 2,
                  body_position=body_position, body_angle=body_angle,
                  radius=radius,
                  texts=texts, color=color, border=border,
                  draw_options=draw_options, camera=camera,
                  costume=costume)
+
+def get_centroid(vertices:Sequence[Coordinates])->Vec2d:
+    return sum((Vec2d(*v) for v in vertices), Vec2d.zero()) / len(vertices)
 
 def draw_texts(surface:pygame.Surface, texts:Dict[str, TextInfo], offset:Vec2d=Vec2d.zero()):
     for name, text_info in texts.items():

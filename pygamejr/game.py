@@ -56,7 +56,7 @@ _camera_follow:CameraFollow = CameraFollow() # actor to follow with camera
 # for each handler type, keep list of actors that have that handler
 _actors_handlers:Dict[int, Set[Actor]] = {}
 _running = False # is game currently running?
-_default_poly_radius = 1
+_default_poly_radius = 1.0
 _sounds:Dict[str, pygame.mixer.Sound] = {} # sounds
 _physics_fps_multiplier = 4
 
@@ -222,10 +222,10 @@ def create_image(image_path:Union[str, Iterable[str]],
                 transparency_enabled:bool=True,
                 paint_mode:ImagePaintMode=ImagePaintMode.CENTER,
                 draw_options:Optional[DrawOptions]=None,
-                visible:bool=True,
+                visible:bool=True, colliision_group:Optional[int]=None, collision_type:Optional[int]=None,
                 density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
                 mass:Optional[float]=None, moment:Optional[float]=None,
-                fixed_object=False, can_rotate=True, can_collide=True,
+                fixed_object=True, can_rotate=True, can_collide=True,
                 velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.,) -> Actor:
 
     if isinstance(image_path, str):
@@ -277,6 +277,10 @@ def create_image(image_path:Union[str, Iterable[str]],
         shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
     if not can_rotate:
         shape.body.moment = float('inf')
+    if colliision_group is not None:
+        shape.group = colliision_group
+    if collision_type is not None:
+        shape.collision_type = collision_type
 
     space.add(body, shape)
 
@@ -319,7 +323,7 @@ def create_rect(width:float=20, height:float=20,
                 transparency_enabled:bool=True,
                 paint_mode:ImagePaintMode=ImagePaintMode.CENTER,
                 draw_options:Optional[DrawOptions]=None,
-                visible:bool=True,
+                visible:bool=True, colliision_group:Optional[int]=None, collision_type:Optional[int]=None,
                 density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
                 mass:Optional[float]=None, moment:Optional[float]=None,
                 fixed_object=False, can_rotate=True, can_collide=True,
@@ -367,6 +371,11 @@ def create_rect(width:float=20, height:float=20,
         shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
     if not can_rotate:
         shape.body.moment = float('inf')
+    if colliision_group is not None:
+        shape.group = colliision_group
+    if collision_type is not None:
+        shape.collision_type = collision_type
+
 
     space.add(body, shape)
     actor = Actor(shape=shape,
@@ -385,6 +394,82 @@ def create_rect(width:float=20, height:float=20,
 
     return actor
 
+def create_line(start_pt:Coordinates,
+                end_pt:Coordinates,
+                radius:float=1,
+                color:PyGameColor="red",
+                border=1,
+                image_path:Union[str, Iterable[str]]=[],
+                transparent_color:Optional[PyGameColor]=None,
+                scale_xy:Tuple[float,float]=(1., 1.),
+                transparency_enabled:bool=True,
+                paint_mode:ImagePaintMode=ImagePaintMode.CENTER,
+                draw_options:Optional[DrawOptions]=None,
+                visible:bool=True, colliision_group:Optional[int]=None, collision_type:Optional[int]=None,
+                density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
+                mass:Optional[float]=None, moment:Optional[float]=None,
+                fixed_object=False, can_rotate=True, can_collide=True,
+                velocity:Vector2=Vec2d.zero(), angular_velocity:float=0.) -> Actor:
+
+    body_type = pymunk.Body.DYNAMIC if any(n is not None for n in (density, mass, moment)) else pymunk.Body.KINEMATIC
+    if fixed_object:
+        body_type = pymunk.Body.STATIC
+
+
+    vertices = [Vec2d(*start_pt), Vec2d(*end_pt)]
+    if body_type != pymunk.Body.STATIC:
+        body_args = {}
+        if mass is not None:
+            body_args['mass'] = mass
+            if moment is None:
+                moment = pymunk.moment_for_segment(mass, vertices[0], vertices[1], radius=radius)
+        if moment is not None:
+            body_args['moment'] = moment
+        body = pymunk.Body(body_type=body_type, **body_args)
+        body.position = Vec2d(0,0)
+        body.angle = 0.0
+        body.velocity = Vec2d(*velocity)
+        body.angular_velocity = math.radians(angular_velocity)
+    else:
+        body = space.static_body
+
+    shape = pymunk.Segment(body, a=vertices[0], b=vertices[1], radius=0)
+    if density is not None:
+        shape.density = density
+    if elasticity is not None:
+        shape.elasticity = elasticity
+    if friction is not None:
+        shape.friction = friction
+    if not can_collide:
+        shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
+    if not can_rotate:
+        shape.body.moment = float('inf')
+    if colliision_group is not None:
+        shape.group = colliision_group
+    if collision_type is not None:
+        shape.collision_type = collision_type
+
+    if body.space is None:
+        space.add(body)
+    space.add(shape)
+
+    actor = Actor(shape=shape,
+                  color=color,
+                  border=border,
+                  image_paths=image_path,
+                  image_scale_xy=scale_xy,
+                  image_transparent_color=transparent_color,
+                  image_transparency_enabled=transparency_enabled,
+                  image_paint_mode=paint_mode,
+                  visible=visible,
+                  draw_options=draw_options,)
+
+    _actors.add(actor)
+    _body_to_actor[shape.body] = actor
+
+    return actor
+
+
 def create_circle(radius:float=20,
                 color:PyGameColor="red",
                 image_path:Union[str, Iterable[str]]=[],
@@ -396,7 +481,7 @@ def create_circle(radius:float=20,
                 transparency_enabled:bool=True,
                 paint_mode:ImagePaintMode=ImagePaintMode.CENTER,
                 draw_options:Optional[DrawOptions]=None,
-                visible:bool=True,
+                visible:bool=True, colliision_group:Optional[int]=None, collision_type:Optional[int]=None,
                 density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
                 mass:Optional[float]=None, moment:Optional[float]=None,
                 fixed_object=False, can_rotate=True, can_collide=True,
@@ -439,6 +524,10 @@ def create_circle(radius:float=20,
         shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
     if not can_rotate:
         shape.body.moment = float('inf')
+    if colliision_group is not None:
+        shape.group = colliision_group
+    if collision_type is not None:
+        shape.collision_type = collision_type
 
     space.add(body, shape)
 
@@ -469,7 +558,7 @@ def create_ellipse(width:int=20, height:int=20,
                 transparency_enabled:bool=True,
                 paint_mode:ImagePaintMode=ImagePaintMode.CENTER,
                 draw_options:Optional[DrawOptions]=None,
-                visible:bool=True,
+                visible:bool=True, colliision_group:Optional[int]=None, collision_type:Optional[int]=None,
                 density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
                 mass:Optional[float]=None, moment:Optional[float]=None,
                 fixed_object=False, can_rotate=True, can_collide=True,
@@ -513,6 +602,10 @@ def create_ellipse(width:int=20, height:int=20,
         shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
     if not can_rotate:
         shape.body.moment = float('inf')
+    if colliision_group is not None:
+        shape.group = colliision_group
+    if collision_type is not None:
+        shape.collision_type = collision_type
 
     space.add(body, shape)
 
@@ -544,7 +637,7 @@ def create_polygon_any(points:Sequence[Coordinates],
                 transparency_enabled:bool=True,
                 paint_mode:ImagePaintMode=ImagePaintMode.CENTER,
                 draw_options:Optional[DrawOptions]=None,
-                visible:bool=True,
+                visible:bool=True, colliision_group:Optional[int]=None, collision_type:Optional[int]=None,
                 density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
                 mass:Optional[float]=None, moment:Optional[float]=None,
                 fixed_object=False, can_rotate=True, can_collide=True,
@@ -554,8 +647,7 @@ def create_polygon_any(points:Sequence[Coordinates],
     if fixed_object:
         body_type = pymunk.Body.STATIC
 
-    centroid = sum(points, Vec2d(0., 0.))
-    centroid = Vec2d(centroid[0]/len(points), centroid[1]/len(points))
+    centroid = common.get_centroid(points)
     # let the center be the origin
     points = [Vec2d(*p) - centroid for p in points]
 
@@ -597,6 +689,10 @@ def create_polygon_any(points:Sequence[Coordinates],
         shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
     if not can_rotate:
         shape.body.moment = float('inf')
+    if colliision_group is not None:
+        shape.group = colliision_group
+    if collision_type is not None:
+        shape.collision_type = collision_type
 
     space.add(body, shape)
 
@@ -627,7 +723,7 @@ def create_polygon(sides:int, width:int=20, height:int=20,
                 transparency_enabled:bool=True,
                 paint_mode:ImagePaintMode=ImagePaintMode.CENTER,
                 draw_options:Optional[DrawOptions]=None,
-                visible:bool=True,
+                visible:bool=True, colliision_group:Optional[int]=None, collision_type:Optional[int]=None,
                 density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
                 mass:Optional[float]=None, moment:Optional[float]=None,
                 fixed_object=False, can_rotate=True, can_collide=True,
@@ -646,7 +742,7 @@ def create_polygon(sides:int, width:int=20, height:int=20,
                 transparency_enabled=transparency_enabled,
                 paint_mode=paint_mode,
                 draw_options=draw_options,
-                visible=visible,
+                visible=visible, colliision_group=colliision_group, collision_type=collision_type,
                 density=density, elasticity=elasticity, friction=friction,
                 mass=mass, moment=moment,
                 fixed_object=fixed_object, can_rotate=can_rotate, can_collide=can_collide,
@@ -663,7 +759,7 @@ def create_hud(width:Optional[float]=None, height:Optional[float]=None,
                 transparency_enabled:bool=True,
                 paint_mode:ImagePaintMode=ImagePaintMode.CENTER,
                 draw_options:Optional[DrawOptions]=None,
-                visible:bool=True,
+                visible:bool=True, colliision_group:Optional[int]=None, collision_type:Optional[int]=None,
                 density:Optional[float]=None, elasticity:Optional[float]=None, friction:Optional[float]=None,
                 mass:Optional[float]=None, moment:Optional[float]=None,
                 fixed_object=False, can_rotate=False, can_collide=False,
@@ -685,7 +781,7 @@ def create_hud(width:Optional[float]=None, height:Optional[float]=None,
                 transparency_enabled=transparency_enabled,
                 paint_mode=paint_mode,
                 draw_options=draw_options,
-                visible=visible,
+                visible=visible, colliision_group=colliision_group, collision_type=collision_type,
                 density=density, elasticity=elasticity, friction=friction,
                 mass=mass, moment=moment,
                 fixed_object=fixed_object, can_rotate=can_rotate, can_collide=can_collide,
@@ -699,6 +795,8 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                         color:PyGameColor=(0, 0, 0, 0),
                         width:int=100, border=0, transparency_enabled:bool=False,
                         extra_length:float=0.,
+                        draw_options:Optional[DrawOptions]=None,
+                        visible:bool=True, colliision_group:Optional[int]=None, collision_type:Optional[int]=None,
                         density:Optional[float]=None, elasticity:Optional[float]=None,
                         fixed_object=True, can_rotate=False, can_collide=True,
                         friction:Optional[float]=None) -> Tuple[Optional[Actor], Optional[Actor], Optional[Actor], Optional[Actor]]:
@@ -718,6 +816,8 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
+                            draw_options=draw_options,
+                            visible=visible, colliision_group=colliision_group, collision_type=collision_type,
                             fixed_object=fixed_object, can_rotate=can_rotate, can_collide=can_collide,
                             velocity=velocity, angular_velocity=angular_velocity)
     if right is not None:
@@ -726,6 +826,8 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
+                            draw_options=draw_options,
+                            visible=visible, colliision_group=colliision_group, collision_type=collision_type,
                             fixed_object=fixed_object, can_rotate=can_rotate, can_collide=can_collide,
                             velocity=velocity, angular_velocity=angular_velocity)
     if top is not None:
@@ -734,6 +836,8 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
+                            draw_options=draw_options,
+                            visible=visible, colliision_group=colliision_group, collision_type=collision_type,
                             fixed_object=fixed_object, can_rotate=can_rotate, can_collide=can_collide,
                             velocity=velocity, angular_velocity=angular_velocity)
     if bottom is not None:
@@ -742,14 +846,15 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
                             color=color, border=border,
                             transparency_enabled=transparency_enabled,
                             density=density, elasticity=elasticity, friction=friction,
+                            draw_options=draw_options,
+                            visible=visible, colliision_group=colliision_group, collision_type=collision_type,
                             fixed_object=fixed_object, can_rotate=can_rotate, can_collide=can_collide,
                             velocity=velocity, angular_velocity=angular_velocity)
     return bottom_wall, right_wall, top_wall, left_wall
 
 
 def create_pin_joint(actor1:Union[Actor, pymunk.Body], actor2:Union[Actor, Coordinates, pymunk.Body],
-                     anchor1:Coordinates=Vec2d.zero(), anchor2:Coordinates=Vec2d.zero(),
-                     angle_offset:float=0)->pymunk.constraints.PinJoint:
+                     anchor1:Coordinates=Vec2d.zero(), anchor2:Coordinates=Vec2d.zero())->pymunk.constraints.PinJoint:
     """Create pivot joint between two actors"""
 
     if isinstance(actor1, Actor):
@@ -762,14 +867,9 @@ def create_pin_joint(actor1:Union[Actor, pymunk.Body], actor2:Union[Actor, Coord
     elif isinstance(actor2, pymunk.Body):
         body2 = actor2
     else: # create kinematic body that doesn't participate in physics
-        ball = create_circle(15, color="blue", center=Vec2d(*actor2), angle=body1.angle,
-                             draw_options = DrawOptions(angle_line_width=1, angle_line_color="red")
-                             )
-        body2 = ball.shape.body
-        # body2 = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
-        # body2.position = Vec2d(*actor2)
-        # body2.angle = body1.angle
-        # body2.angle += angle_offset
+        body2 = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
+        body2.position = Vec2d(*actor2)
+        space.add(body2)
 
     joint = pymunk.constraints.PinJoint(body1, body2, anchor1, anchor2)
     space.add(joint)
