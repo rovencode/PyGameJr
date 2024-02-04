@@ -688,3 +688,69 @@ def spring_max_parameters(body_a, body_b, anchor_a, anchor_b, gravity_vec, displ
     max_damping = 2 * math.sqrt(max_stiffness * mass_for_calculation)
 
     return max_stiffness, max_damping, rest_length
+
+def get_rest_angle(body_a: pymunk.Body, body_b: pymunk.Body) -> float:
+    """
+    Calculates the rest angle for a damped rotary spring based on the current orientations of two bodies.
+
+    Parameters:
+    - body_a: The first pymunk.Body instance.
+    - body_b: The second pymunk.Body instance.
+
+    Returns:
+    The rest angle in radians.
+    """
+    # Calculate the difference in angle between the two bodies
+    angle_diff = body_b.angle - body_a.angle
+
+    # Normalize the angle difference to the range [-pi, pi] to ensure it represents the shortest rotational distance
+    rest_angle = (angle_diff + math.pi) % (2 * math.pi) - math.pi
+
+    return rest_angle
+
+
+def rotary_spring_max_parameters(body_a: pymunk.Body, body_b: pymunk.Body,
+                                 gravity_vec: Vec2d, rest_angle: Optional[float]=None,
+                                 arm_length=1.0, displacement_ratio=0.25) -> tuple[float, float, float]:
+    """
+    Calculates proposed maximum values for stiffness and damping for a damped rotary spring
+    based on the properties of the connected bodies and their environment.
+
+    Parameters:
+    - body_a: pymunk.Body instance for one of the bodies connected by the rotary spring.
+    - body_b: pymunk.Body instance for the other body connected by the rotary spring.
+    - rest_angle: The rest angle for the rotary spring in radians.
+    - gravity_vec: The gravity in the simulation as a pymunk.Vec2d.
+
+    Returns:
+    A tuple containing (max_stiffness, max_damping).
+    """
+
+    rest_angle = rest_angle if rest_angle is not None else get_rest_angle(body_a, body_b)
+
+    # Determine the appropriate mass for calculation
+    if body_a.body_type == pymunk.Body.DYNAMIC and body_b.body_type in [pymunk.Body.STATIC, pymunk.Body.KINEMATIC]:
+        mass_for_calculation = body_a.mass
+    elif body_b.body_type == pymunk.Body.DYNAMIC and body_a.body_type in [pymunk.Body.STATIC, pymunk.Body.KINEMATIC]:
+        mass_for_calculation = body_b.mass
+    elif body_a.body_type == pymunk.Body.DYNAMIC and body_b.body_type == pymunk.Body.DYNAMIC:
+        mass_for_calculation = (body_a.mass * body_b.mass) / (body_a.mass + body_b.mass)
+    else:
+        mass_for_calculation = 1  # Use a nominal mass value if no dynamic bodies
+
+    # Effective gravity force acting through the arm
+    g_force = mass_for_calculation * gravity_vec.length
+
+    # Torque caused by gravity at the given arm length
+    torque = g_force * arm_length
+
+    # Stiffness calculation: Assume we want the spring to counteract this torque at 10% of the rest angle
+    displacement_fraction = displacement_ratio * (rest_angle + 0.000001)
+    max_stiffness = torque / displacement_fraction
+
+    # Damping for a critically damped system: d = 2 * sqrt(k * I)
+    # Moment of inertia (I) for a point mass at the end of the arm (simplified)
+    I = mass_for_calculation * arm_length**2
+    max_damping = 2 * math.sqrt(max_stiffness * I)
+
+    return max_stiffness, max_damping, rest_angle

@@ -45,6 +45,14 @@
             "justMyCode": true
         },
         {
+            "name": "pin_ball",
+            "type": "python",
+            "request": "launch",
+            "program": "examples/pin_ball.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "mario_physics",
             "type": "python",
             "request": "launch",

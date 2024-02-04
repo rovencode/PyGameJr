@@ -747,28 +747,89 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
     return bottom_wall, right_wall, top_wall, left_wall
 
 
-def create_pin_joint(actor1:Actor, actor2:Actor,
+def create_pin_joint(actor1:Union[Actor, pymunk.Body], actor2:Union[Actor, Coordinates, pymunk.Body],
                      anchor1:Coordinates=Vec2d.zero(), anchor2:Coordinates=Vec2d.zero())->pymunk.constraints.PinJoint:
     """Create pivot joint between two actors"""
-    joint = pymunk.constraints.PinJoint(actor1.shape.body, actor2.shape.body, anchor1, anchor2)
+
+    if isinstance(actor1, Actor):
+        body1 = actor1.shape.body
+    else:
+        body1 = actor1
+
+    if isinstance(actor2, Actor):
+        body2 = actor2.shape.body
+    elif isinstance(actor2, pymunk.Body):
+        body2 = actor2
+    else: # create kinematic body that doesn't participate in physics
+        body2 = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
+        body2.position = Vec2d(*actor2)
+
+    joint = pymunk.constraints.PinJoint(body1, body2, anchor1, anchor2)
     space.add(joint)
     return joint
 
-def create_spring_joint(actor1:Actor, actor2:Actor,
+def create_spring_joint(actor1:Union[Actor, pymunk.Body], actor2:Union[Actor, pymunk.Body],
                      anchor1:Coordinates=Vec2d.zero(), anchor2:Coordinates=Vec2d.zero(),
-                     rest_length_ratio:float=1.0, stiffness_ratio:float=0.8, damping_ratio:float=0.3)->pymunk.constraints.DampedSpring:
+                     rest_length:float=1.0, stiffness:float=0.8, damping:float=0.3,
+                     params_as_ratio:bool=True)->pymunk.constraints.DampedSpring:
     """Create pivot joint between two actors"""
-    max_stiffness, max_damping, rest_length = common.spring_max_parameters(
-        actor1.shape.body, actor2.shape.body,
-        anchor1, anchor2,
-        gravity())
-    joint = pymunk.constraints.DampedSpring(actor1.shape.body, actor2.shape.body,
+    if isinstance(actor1, Actor):
+        body1 = actor1.shape.body
+    else:
+        body1 = actor1
+    if isinstance(actor2, Actor):
+        body2 = actor2.shape.body
+    else:
+        body2 = actor2
+
+    if params_as_ratio:
+        max_stiffness, max_damping, max_rest_length = common.spring_max_parameters(
+            body1, body2,
+            anchor1, anchor2,
+            gravity())
+
+        rest_length = max_rest_length * rest_length
+        stiffness = max_stiffness * stiffness
+        damping = max_damping * damping
+
+    joint = pymunk.constraints.DampedSpring(body1, body2,
                                             anchor1, anchor2,
-                                            rest_length=rest_length*rest_length_ratio,
-                                            stiffness=stiffness_ratio*max_stiffness,
-                                            damping=damping_ratio*max_damping)
+                                            rest_length=rest_length,
+                                            stiffness=stiffness,
+                                            damping=damping)
     space.add(joint)
     return joint
+
+def create_rotary_spring_joint(actor1:Union[Actor, pymunk.Body], actor2:Union[Actor, pymunk.Body],
+                     rest_angle:float=2*math.pi, stiffness:float=0.8, damping:float=0.3,
+                     params_as_ratio:bool=True)->pymunk.constraints.DampedRotarySpring:
+    """Create pivot joint between two actors"""
+
+    if isinstance(actor1, Actor):
+        body1 = actor1.shape.body
+    else:
+        body1 = actor1
+    if isinstance(actor2, Actor):
+        body2 = actor2.shape.body
+    else:
+        body2 = actor2
+
+    if params_as_ratio:
+        max_stiffness, max_damping, max_rest_angle = common.rotary_spring_max_parameters(
+            body1, body2,
+            gravity())
+
+        rest_angle = max_rest_angle * rest_angle
+        stiffness = max_stiffness * stiffness
+        damping = max_damping * damping
+
+    joint = pymunk.constraints.DampedRotarySpring(body1, body2,
+                                            rest_angle=rest_angle,
+                                            stiffness=stiffness,
+                                            damping=damping)
+    space.add(joint)
+    return joint
+
 
 def start(screen_title:str=_screen_props.title,
           screen_width=_screen_props.width,
