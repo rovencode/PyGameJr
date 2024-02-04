@@ -45,7 +45,7 @@
             "justMyCode": true
         },
         {
-            "name": "mario animation",
+            "name": "mario_physics",
             "type": "python",
             "request": "launch",
             "program": "examples/mario/mario_physics.py",

@@ -748,11 +748,27 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
 
 
 def create_pin_joint(actor1:Actor, actor2:Actor,
-                     anchor1:Coordinates=Vec2d.zero(),
-                     anchor2:Coordinates=Vec2d.zero())->pymunk.constraints.PinJoint:
+                     anchor1:Coordinates=Vec2d.zero(), anchor2:Coordinates=Vec2d.zero())->pymunk.constraints.PinJoint:
     """Create pivot joint between two actors"""
     joint = pymunk.constraints.PinJoint(actor1.shape.body, actor2.shape.body, anchor1, anchor2)
     space.add(joint)
+    return joint
+
+def create_spring_joint(actor1:Actor, actor2:Actor,
+                     anchor1:Coordinates=Vec2d.zero(), anchor2:Coordinates=Vec2d.zero(),
+                     rest_length_ratio:float=1.0, stiffness_ratio:float=0.8, damping_ratio:float=0.3)->pymunk.constraints.DampedSpring:
+    """Create pivot joint between two actors"""
+    max_stiffness, max_damping, rest_length = common.spring_max_parameters(
+        actor1.shape.body, actor2.shape.body,
+        anchor1, anchor2,
+        gravity())
+    joint = pymunk.constraints.DampedSpring(actor1.shape.body, actor2.shape.body,
+                                            anchor1, anchor2,
+                                            rest_length=rest_length*rest_length_ratio,
+                                            stiffness=stiffness_ratio*max_stiffness,
+                                            damping=damping_ratio*max_damping)
+    space.add(joint)
+    return joint
 
 def start(screen_title:str=_screen_props.title,
           screen_width=_screen_props.width,
@@ -977,6 +993,28 @@ def update():
         actor.update()
     for actor in _actors:
         actor.draw(screen, camera=camera)
+
+    # draw pin joints
+    for constraint in space.constraints:
+        if isinstance(constraint, pymunk.PinJoint):
+            body_a, body_b = constraint.a, constraint.b
+
+            # Calculate the world coordinates of the pin joint's anchor points
+            # For each body, the world coordinate is the body's position plus the rotation applied to the anchor point
+            anchor_a_world = body_a.position + body_a.rotation_vector.rotated(constraint.anchor_a.angle) * constraint.anchor_a.length
+            anchor_b_world = body_b.position + body_b.rotation_vector.rotated(constraint.anchor_b.angle) * constraint.anchor_b.length
+
+            common.draw_vertices(screen=screen, is_local=False,
+                                 polygone_or_lines=False, border=1, camera=camera,
+                                 vertices=[anchor_a_world, anchor_b_world],
+                                 color="black")
+        # draw spring joints
+        elif isinstance(constraint, pymunk.DampedSpring):
+            vertices = common.spring_line_segments(constraint, 10)
+            common.draw_vertices(screen=screen, is_local=False,
+                                 polygone_or_lines=False, border=1, camera=camera,
+                                 vertices=vertices,
+                                 color="black")
 
     # draw texts from noone
     common.draw_texts(screen, noone.texts)

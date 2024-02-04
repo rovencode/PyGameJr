@@ -295,7 +295,7 @@ class Camera:
             points = np.dot(points, self.scaling_matrix)
 
         if rotate:
-            points = np.dot(points, self.rotation_matrix.T)
+            points = np.dot(points, self.rotation_matrix.T) # type: ignore
 
         if translate:
             points = points - self.bottom_left # type: ignore
@@ -375,19 +375,71 @@ def interpolate(start:float, end:float, max_amount:float)->float:
     return start + clamp((end - start), -max_amount, max_amount)
 
 
+def spring_line_segments(damped_spring:pymunk.DampedSpring, segments=10)->List[Vec2d]:
+    """
+    Generates line segments for drawing a spring based on a pymunk.DampedSpring object.
+
+    Parameters:
+    - damped_spring: A pymunk.DampedSpring object.
+    - segments: Number of segments to divide the spring into for drawing.
+
+    Returns:
+    A list of tuples, where each tuple contains two points (start and end) representing a line segment.
+    """
+    # Get the world coordinates of the spring's anchors
+    anchor_a_world = damped_spring.a.local_to_world(damped_spring.anchor_a)
+    anchor_b_world = damped_spring.b.local_to_world(damped_spring.anchor_b)
+
+    # Calculate the spring's current length
+    dx = anchor_b_world.x - anchor_a_world.x
+    dy = anchor_b_world.y - anchor_a_world.y
+    current_length = math.sqrt(dx**2 + dy**2)
+
+    # Calculate the angle of the spring with respect to the horizontal
+    angle = math.atan2(dy, dx)
+
+    # Determine the length of each segment based on the current length of the spring
+    segment_length = current_length / segments
+
+    # Generate the line segments
+    points = []
+    for i in range(segments):
+        # Calculate start point of the current segment
+        start_x = anchor_a_world.x + (segment_length * i) * math.cos(angle)
+        start_y = anchor_a_world.y + (segment_length * i) * math.sin(angle)
+
+        # Calculate end point of the current segment
+        # For zigzag pattern, alternate the direction of the offset
+        offset_direction = 1 if i % 2 == 0 else -1
+        offset_length = segment_length / 2  # Adjust for desired amplitude of the zigzag
+        end_x = start_x + offset_length * math.cos(angle + math.pi / 2) * offset_direction
+        end_y = start_y + offset_length * math.sin(angle + math.pi / 2) * offset_direction
+
+        points.append(Vec2d(start_x, start_y))
+        points.append(Vec2d(end_x, end_y))
+
+        # For the last segment, ensure it connects to the final anchor
+        if i == segments - 1:
+            points.append(Vec2d(end_x, end_y))
+            points.append(Vec2d(anchor_b_world.x, anchor_b_world.y))
+
+    return points
+
+
 def draw_vertices(screen:pygame.Surface, vertices:List[Vec2d],
                    is_local:bool,
                    polygone_or_lines:bool,
-                   body_position:Vec2d, body_angle:float,
-                   radius:Optional[float],
-                   texts:Dict[str, TextInfo],
                    color:PyGameColor, border:int,
-                   draw_options:Optional[DrawOptions],
                    camera:Camera,
+                   body_position:Optional[Vec2d]=None,
+                   body_angle:Optional[float]=None,
+                   radius:Optional[float]=None,
+                   texts:Dict[str, TextInfo]={},
+                   draw_options:Optional[DrawOptions]=None,
                    costume:Optional[CostumeSpec]=None)->None:
 
-
     if is_local:
+        assert body_position is not None and body_angle is not None, "body_position and body_angle are required for local vertices"
         #first rotate these points
         if body_angle != 0:
             vertices = [v.rotated(body_angle) for v in vertices]
@@ -395,10 +447,19 @@ def draw_vertices(screen:pygame.Surface, vertices:List[Vec2d],
         # get vertices in global coordinates
         vertices = [v + body_position for v in vertices]
 
-    # add centroid that we will remove later
-    vertices.append(Vec2d(0, 0)+body_position)
-    # add unit vector for angle line that we will remove later
-    vertices.append(Vec2d(1, 0).rotated(body_angle)+body_position)
+        # add centroid that we will remove later
+        vertices.append(Vec2d(0, 0)+body_position)
+        # add unit vector for angle line that we will remove later
+        vertices.append(Vec2d(1, 0).rotated(body_angle)+body_position)
+    else:
+        # centrold is average of all vertices
+        body_position = sum(vertices, Vec2d.zero()) / len(vertices)
+        body_angle = 0.
+        # add centroid that we will remove later
+        vertices.append(body_position)
+        # add unit vector for angle line that we will remove later
+        # body angle is zero for global vertices
+        vertices.append(Vec2d(1, 0))
 
     # apply camera transformations
     vertices = camera.apply(vertices)
@@ -462,7 +523,7 @@ def draw_vertices(screen:pygame.Surface, vertices:List[Vec2d],
             tile_image(image, tiled_dest, (0, 0))
             image = tiled_dest
 
-        # apply body and camera rotation
+        # apply body and camera rotation to image
         angle = body_angle + camera.theta
         if angle != 0:
             # add 180 degree to flip y
@@ -582,3 +643,48 @@ def is_second_rect_outside(xy1, xy2, xy1_prime, xy2_prime):
         return True
     else:
         return False
+
+
+def spring_max_parameters(body_a, body_b, anchor_a, anchor_b, gravity_vec, displacement_fraction=0.25):
+    """
+    Calculates proposed maximum values for stiffness, damping, and rest length for a damped spring
+    based on the properties of the connected bodies (taking into account static and kinematic bodies)
+    and their environment (with gravity as a pymunk.Vec2d).
+
+    Parameters:
+    - body_a, body_b: pymunk.Body instances for the two bodies connected by the spring.
+    - anchor_a, anchor_b: The local anchor points on body_a and body_b respectively, as (x, y) tuples.
+    - gravity_vec: The gravity in the simulation as a pymunk.Vec2d.
+
+    Returns:
+    A tuple containing (max_stiffness, max_damping, rest_length).
+    """
+
+    # Compute the effective gravity force magnitude
+    g = gravity_vec.length
+
+    # Calculate the rest length as the distance between the anchor points in world coordinates
+    anchor_a_world = body_a.local_to_world(anchor_a)
+    anchor_b_world = body_b.local_to_world(anchor_b)
+    rest_length = (anchor_a_world - anchor_b_world).length
+
+    # Determine the dynamic body for stiffness and damping calculation
+    if body_a.body_type == pymunk.Body.DYNAMIC and body_b.body_type in [pymunk.Body.STATIC, pymunk.Body.KINEMATIC]:
+        mass_for_calculation = body_a.mass
+    elif body_b.body_type == pymunk.Body.DYNAMIC and body_a.body_type in [pymunk.Body.STATIC, pymunk.Body.KINEMATIC]:
+        mass_for_calculation = body_b.mass
+    elif body_a.body_type == pymunk.Body.DYNAMIC and body_b.body_type == pymunk.Body.DYNAMIC:
+        # Use the reduced mass if both bodies are dynamic
+        mass_for_calculation = (body_a.mass * body_b.mass) / (body_a.mass + body_b.mass)
+    else:
+        # Default case if no dynamic bodies are involved (e.g., both static or kinematic)
+        mass_for_calculation = 1  # Use a nominal mass value to avoid division by zero
+
+    # Stiffness calculation: F = mg for displacement
+    max_stiffness = (mass_for_calculation * g) / (displacement_fraction * rest_length)
+
+    # Damping for a critically damped system: d = 2 * sqrt(k * m_reduced)
+    # Here, m_reduced is replaced with mass_for_calculation for simplicity
+    max_damping = 2 * math.sqrt(max_stiffness * mass_for_calculation)
+
+    return max_stiffness, max_damping, rest_length
