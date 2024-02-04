@@ -24,17 +24,35 @@ mario.start_animation()
 game.camera_follow_actor(mario)
 
 # create platforms
-platforms = []
-pos = Vec2d(300, 250)
-for i in range(2):
-    platform = game.create_rect(300, 20, image_path="bricks.png",
-                    bottom_left=pos, paint_mode=ImagePaintMode.TILE,
-                    scale_xy=(0.5, 0.5),
-                    density=1, friction=1.0, fixed_object=True)
-    platforms.append(platform)
-    pos += Vec2d(random.randint(300, 800), random.randint(-100, 100))
-    if pos.y < GROUND_Y:
-        pos = Vec2d(pos.x, GROUND_Y + 100)
+platform1 = game.create_rect(300, 20, image_path="bricks.png",
+                bottom_left=(300, 250), paint_mode=ImagePaintMode.TILE,
+                scale_xy=(0.5, 0.5),
+                density=1, friction=1.0, fixed_object=True)
+platform2 = game.create_rect(300, 20, image_path="bricks.png",
+                bottom_left=(800, 250), paint_mode=ImagePaintMode.TILE,
+                scale_xy=(0.5, 0.5),
+                density=1, friction=1.0, fixed_object=True)
+platform2 = game.create_rect(300, 20, image_path="bricks.png",
+                bottom_left=(1400, 250), paint_mode=ImagePaintMode.TILE,
+                scale_xy=(0.5, 0.5),
+                density=1, friction=1.0, fixed_object=True)
+
+# create stack of blocks on platform2
+for i in range(15):
+    game.create_rect(150, 15, color=game.common.random_color(),
+                     bottom_left=(800+200, 250 + i*50),
+                     density=0.0001, friction=0.3)
+    game.create_rect(150, 15, color=game.common.random_color(),
+                     bottom_left=(800+200+200, 250 + i*50),
+                     density=0.0001, friction=0.3)
+
+ # create bunch of balls on platform3
+balls = []
+for i in range(5):
+    ball = game.create_circle(25, color=game.common.random_color(),
+                       center=(1400+200, 250 + i*50),
+                       density=0.0001, friction=0.2, draw_options=game.DrawOptions(angle_line_width=1))
+    balls.append(ball)
 
 # play background music
 #game.play_sound('music.mp3', loops=-1)

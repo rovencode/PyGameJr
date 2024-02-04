@@ -275,10 +275,10 @@ def create_image(image_path:Union[str, Iterable[str]],
         shape.friction = friction
     if not can_collide:
         shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
-
-    space.add(body, shape)
     if not can_rotate:
         shape.body.moment = float('inf')
+
+    space.add(body, shape)
 
     actor = Actor(shape=shape,
                   border=border,
@@ -365,10 +365,10 @@ def create_rect(width:float=20, height:float=20,
         shape.friction = friction
     if not can_collide:
         shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
-
-    space.add(body, shape)
     if not can_rotate:
         shape.body.moment = float('inf')
+
+    space.add(body, shape)
     actor = Actor(shape=shape,
                   color=color,
                   border=border,
@@ -437,10 +437,10 @@ def create_circle(radius:float=20,
         shape.friction = friction
     if not can_collide:
         shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
-
-    space.add(body, shape)
     if not can_rotate:
         shape.body.moment = float('inf')
+
+    space.add(body, shape)
 
     actor = Actor(shape=shape,
                   color=color,
@@ -511,10 +511,10 @@ def create_ellipse(width:int=20, height:int=20,
         shape.friction = friction
     if not can_collide:
         shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
-
-    space.add(body, shape)
     if not can_rotate:
         shape.body.moment = float('inf')
+
+    space.add(body, shape)
 
     actor = Actor(shape=shape,
                   color=color,
@@ -595,10 +595,10 @@ def create_polygon_any(points:Sequence[Coordinates],
         shape.friction = friction
     if not can_collide:
         shape.filter = pymunk.ShapeFilter(categories=0x1, mask=0x0)
-
-    space.add(body, shape)
     if not can_rotate:
         shape.body.moment = float('inf')
+
+    space.add(body, shape)
 
     actor = Actor(shape=shape,
                   color=color,

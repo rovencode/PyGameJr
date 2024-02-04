@@ -414,7 +414,8 @@ def draw_shape(screen:pygame.Surface, shape:pymunk.Shape,
     vertices = [Vec2d(v.x, screen.get_height()-v.y) for v in vertices]
 
     # remove the centroid from the vertices
-    centroid, unit_vec = vertices[-2], vertices[-1].normalized()
+    centroid, unit_vec = vertices[-2], vertices[-1]
+    unit_vec = unit_vec - centroid
     vertices = vertices[:-2]
 
     # draw the shape on shape surface
