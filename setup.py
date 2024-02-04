@@ -12,7 +12,7 @@ install_requires=[
 
 setuptools.setup(
     name="pygamejr",
-    version="0.7.0",
+    version="0.7.1",
     author="Shital Shah",
     description="PyGame wrapper for kids",
     long_description=long_description,
