@@ -645,7 +645,7 @@ def is_second_rect_outside(xy1, xy2, xy1_prime, xy2_prime):
         return False
 
 
-def spring_max_parameters(body_a, body_b, anchor_a, anchor_b, gravity_vec, displacement_fraction=0.25):
+def spring_max_parameters(body_a, body_b, anchor_a, anchor_b, gravity_vec, displacement_fraction=0.75):
     """
     Calculates proposed maximum values for stiffness, damping, and rest length for a damped spring
     based on the properties of the connected bodies (taking into account static and kinematic bodies)

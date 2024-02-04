@@ -36,6 +36,10 @@ platform3 = game.create_rect(300, 20, image_path="bricks.png",
                 bottom_left=(1400, 250), paint_mode=ImagePaintMode.TILE,
                 scale_xy=(0.5, 0.5),
                 density=1, friction=1.0, fixed_object=True)
+platform4 = game.create_rect(300, 20, image_path="bricks.png",
+                bottom_left=(2000, 250), paint_mode=ImagePaintMode.TILE,
+                scale_xy=(0.5, 0.5),
+                density=1, friction=1.0, fixed_object=True)
 
 # create hanging ball from platform1 using pin joint
 ball = game.create_circle(25, color=game.common.random_color(),
@@ -48,6 +52,15 @@ ball = game.create_circle(25, color=game.common.random_color(),
                           center=(800+150, 250-100),
                           density=0.0001, friction=0.2)
 game.create_spring_joint(platform2, ball)
+
+# create two balls on platform4 and connect them by spring joint
+ball1 = game.create_circle(25, color=game.common.random_color(),
+                           center=(2000+50, 350),
+                           density=0.0001, friction=0.2)
+ball2 = game.create_circle(25, color=game.common.random_color(),
+                            center=(2000+250, 350),
+                            density=0.0001, friction=0.2)
+game.create_spring_joint(ball1, ball2)
 
 # create stack of blocks on platform2
 for i in range(15):
