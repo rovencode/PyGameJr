@@ -37,6 +37,12 @@ platform2 = game.create_rect(300, 20, image_path="bricks.png",
                 scale_xy=(0.5, 0.5),
                 density=1, friction=1.0, fixed_object=True)
 
+# create hanging ball from platform1 using pin joint
+ball = game.create_circle(25, color=game.common.random_color(),
+                          center=(300+150, 250-100),
+                          density=0.0001, friction=0.2, draw_options=game.DrawOptions(angle_line_width=1))
+game.create_pin_joint(platform1, ball)
+
 # create stack of blocks on platform2
 for i in range(15):
     game.create_rect(150, 15, color=game.common.random_color(),
@@ -47,15 +53,12 @@ for i in range(15):
                      density=0.0001, friction=0.3)
 
  # create bunch of balls on platform3
-balls = []
 for i in range(5):
-    ball = game.create_circle(25, color=game.common.random_color(),
+    game.create_circle(25, color=game.common.random_color(),
                        center=(1400+200, 250 + i*50),
                        density=0.0001, friction=0.2, draw_options=game.DrawOptions(angle_line_width=1))
-    balls.append(ball)
 
-# play background music
-#game.play_sound('music.mp3', loops=-1)
+
 
 while game.is_running():
     keys = game.key_pressed()

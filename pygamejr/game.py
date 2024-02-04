@@ -747,6 +747,12 @@ def create_screen_walls(left:Optional[Union[float, bool]]=None,
     return bottom_wall, right_wall, top_wall, left_wall
 
 
+def create_pin_joint(actor1:Actor, actor2:Actor,
+                     anchor1:Coordinates=Vec2d.zero(),
+                     anchor2:Coordinates=Vec2d.zero())->pymunk.constraints.PinJoint:
+    """Create pivot joint between two actors"""
+    joint = pymunk.constraints.PinJoint(actor1.shape.body, actor2.shape.body, anchor1, anchor2)
+    space.add(joint)
 
 def start(screen_title:str=_screen_props.title,
           screen_width=_screen_props.width,

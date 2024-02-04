@@ -374,37 +374,31 @@ def interpolate(start:float, end:float, max_amount:float)->float:
     """Interpolates between two values."""
     return start + clamp((end - start), -max_amount, max_amount)
 
-def draw_shape(screen:pygame.Surface, shape:pymunk.Shape,
+
+def draw_vertices(screen:pygame.Surface, vertices:List[Vec2d],
+                   is_local:bool,
+                   polygone_or_lines:bool,
+                   body_position:Vec2d, body_angle:float,
+                   radius:Optional[float],
                    texts:Dict[str, TextInfo],
                    color:PyGameColor, border:int,
                    draw_options:Optional[DrawOptions],
                    camera:Camera,
                    costume:Optional[CostumeSpec]=None)->None:
 
-    # points in shape are centered at origin without rotation
-    radius:Optional[float] = None
-    if isinstance(shape, pymunk.Poly):
-        vertices = shape.get_vertices()
-    elif isinstance(shape, pymunk.Segment):
-        vertices = rectangle_from_line(shape.a, shape.b)
-    elif isinstance(shape, pymunk.Circle):
-        vertices = [Vec2d(shape.radius, shape.radius), Vec2d(shape.radius, -shape.radius),
-                    Vec2d(-shape.radius, -shape.radius), Vec2d(-shape.radius, shape.radius)]
-        radius = shape.radius
-    else:
-        raise ValueError(f"Unknown shape type: {type(shape)}")
+
+    if is_local:
+        #first rotate these points
+        if body_angle != 0:
+            vertices = [v.rotated(body_angle) for v in vertices]
+
+        # get vertices in global coordinates
+        vertices = [v + body_position for v in vertices]
 
     # add centroid that we will remove later
-    vertices.append(Vec2d(0, 0))
+    vertices.append(Vec2d(0, 0)+body_position)
     # add unit vector for angle line that we will remove later
-    vertices.append(Vec2d(1, 0))
-
-    #first rotate these points
-    if shape.body.angle != 0:
-        vertices = [v.rotated(shape.body.angle) for v in vertices]
-
-    # get vertices in global coordinates
-    vertices = [v + shape.body.position for v in vertices]
+    vertices.append(Vec2d(1, 0).rotated(body_angle)+body_position)
 
     # apply camera transformations
     vertices = camera.apply(vertices)
@@ -427,8 +421,12 @@ def draw_shape(screen:pygame.Surface, shape:pymunk.Shape,
 
     if radius is not None:
         pygame.draw.circle(shape_surface, color, (width/2., height/2.), radius, border)
-    else:
+    elif polygone_or_lines:
         pygame.draw.polygon(shape_surface, color, [(v.x-min_x, v.y-min_y) for v in vertices], border)
+    else: # draw lines from vertices
+        pygame.draw.lines(shape_surface, color, closed=False,
+                          points=[(v.x-min_x, v.y-min_y) for v in vertices],
+                          width=border)
 
     shape_screen_offset = Vec2d(min_x, min_y)
 
@@ -443,8 +441,9 @@ def draw_shape(screen:pygame.Surface, shape:pymunk.Shape,
         solid_color = (255, 255, 255, 255)
         if radius is not None:
             pygame.draw.circle(mask, solid_color, (width/2, height/2), radius, border)
-        else:
+        elif polygone_or_lines:
             pygame.draw.polygon(mask, solid_color, [(v.x-min_x, v.y-min_y) for v in vertices], border)
+        #else: images are not supported for lines
 
         # get the image to draw on the shape
         image = costume.get_image()
@@ -464,7 +463,7 @@ def draw_shape(screen:pygame.Surface, shape:pymunk.Shape,
             image = tiled_dest
 
         # apply body and camera rotation
-        angle = shape.body.angle + camera.theta
+        angle = body_angle + camera.theta
         if angle != 0:
             # add 180 degree to flip y
             image = pygame.transform.rotate(image, math.degrees(angle))
@@ -491,6 +490,37 @@ def draw_shape(screen:pygame.Surface, shape:pymunk.Shape,
     screen.blit(shape_surface, shape_screen_offset)
 
 
+def draw_shape(screen:pygame.Surface, shape:pymunk.Shape,
+                   texts:Dict[str, TextInfo],
+                   color:PyGameColor, border:int,
+                   draw_options:Optional[DrawOptions],
+                   camera:Camera,
+                   costume:Optional[CostumeSpec]=None)->None:
+
+    body_position = shape.body.position
+    body_angle = shape.body.angle
+
+    # points in shape are centered at origin without rotation
+    radius:Optional[float] = None
+    if isinstance(shape, pymunk.Poly):
+        vertices = shape.get_vertices()
+    elif isinstance(shape, pymunk.Segment):
+        vertices = rectangle_from_line(shape.a, shape.b)
+    elif isinstance(shape, pymunk.Circle):
+        vertices = [Vec2d(shape.radius, shape.radius), Vec2d(shape.radius, -shape.radius),
+                    Vec2d(-shape.radius, -shape.radius), Vec2d(-shape.radius, shape.radius)]
+        radius = shape.radius
+    else:
+        raise ValueError(f"Unknown shape type: {type(shape)}")
+
+    draw_vertices(screen=screen, vertices=vertices,
+                 is_local=True,
+                 polygone_or_lines=True,
+                 body_position=body_position, body_angle=body_angle,
+                 radius=radius,
+                 texts=texts, color=color, border=border,
+                 draw_options=draw_options, camera=camera,
+                 costume=costume)
 
 def draw_texts(surface:pygame.Surface, texts:Dict[str, TextInfo], offset:Vec2d=Vec2d.zero()):
     for name, text_info in texts.items():
