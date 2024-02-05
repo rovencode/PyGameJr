@@ -23,6 +23,8 @@ mario = game.create_image(image_path=["mario1.png", "mario2.png", "mario3.png"],
                           mass=5, can_rotate=False)
 mario.start_animation()
 game.camera_follow_actor(mario)
+#game.set_camera_controls(True)
+
 
 # create platforms
 platform1 = game.create_rect(300, 20, image_path="bricks.png",

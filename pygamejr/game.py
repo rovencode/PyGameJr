@@ -47,7 +47,7 @@ class CameraFollow:
     min_distance:float=10
     speed:float=10
     min_angle:float=5
-    angle_speed:float=1
+    angle_speed:float=math.radians(5)
 
 # private variables
 _actors:Set[Actor] = set() # list of all actors
@@ -1140,6 +1140,7 @@ def update():
         screen.fill(_screen_props.color)
     if _screen_props.image_scaled:
         bg_image = _screen_props.image_scaled
+        # common.draw_tiled_background(screen, camera, bg_image)
         if camera.scale != 1.:
             bg_image = pygame.transform.scale(bg_image,
                 (int(bg_image.get_width()*camera.scale),
@@ -1239,3 +1240,5 @@ def end():
         pygame.mixer.quit()
         _running = False
         exit(0)
+
+# TODO: make radians and degrees consistent in APIs

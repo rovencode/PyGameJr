@@ -261,7 +261,7 @@ class CameraControls:
     rotate_right_key='e'
     zoom_speed:float=1.1
     pan_speed:float=10.
-    rotate_speed:float=5.
+    rotate_speed:float=math.radians(5)
     reset_key:str='r'
 class Camera:
     def __init__(self) -> None:
@@ -275,8 +275,7 @@ class Camera:
             self.theta = 0
             self.rotation_matrix = np.eye(2)
         else:
-            # Convert angle to radians
-            self.theta = np.radians(self.angle)
+            self.theta = self.angle
             # Create rotation matrix
             self.rotation_matrix = np.array([[np.cos(self.theta), -np.sin(self.theta)],
                                         [np.sin(self.theta),  np.cos(self.theta)]])
@@ -764,3 +763,50 @@ def rotary_spring_max_parameters(body_a: pymunk.Body, body_b: pymunk.Body,
     max_damping = 2 * math.sqrt(max_stiffness * I)
 
     return max_stiffness, max_damping, rest_angle
+
+
+import pygame
+import math
+
+def draw_tiled_background(screen, camera, background_image):
+    camera_scale, camera_angle_radians, camera_bottom_left = camera.scale, camera.angle, camera.bottom_left
+
+    # Transform the background image (scale and rotate)
+    scaled_image = pygame.transform.scale(background_image, (
+        int(background_image.get_width() * camera_scale),
+        int(background_image.get_height() * camera_scale)))
+    rotated_image = pygame.transform.rotate(scaled_image, math.degrees(camera_angle_radians))
+
+    # Calculate the size of the rotated image
+    rotated_width, rotated_height = rotated_image.get_size()
+
+    # calculate offset for rotated image
+    image_top_left = Vec2d(0, scaled_image.get_height()).rotated(camera_angle_radians)
+    offset = Vec2d(0, scaled_image.get_height()) - image_top_left
+
+    # Screen dimensions
+    screen_width, screen_height = screen.get_size()
+
+    # original camera top left
+    camera_top_left = camera_bottom_left + Vec2d(0, screen_height)
+    # transform this point
+    camera_top_left = camera.apply([camera_top_left])[0]
+
+    # Adjusted camera position to start tiling from, considering the rotation
+    camera_x, camera_y = camera_top_left
+    camera_y = screen_height - camera_y
+
+    # how many tiles do we need
+    tile_width, tile_height = rotated_image.get_size()
+    tiles_x = math.ceil(screen_width / tile_width)
+    tiles_y = math.ceil(screen_height / tile_height)
+
+    # Calculate the starting position for tiling, ensuring coverage regardless of camera position
+    start_x = math.floor(camera_x / screen_width)*screen_width - camera_x - offset.x
+    start_y = math.floor(camera_y / screen_height)*screen_height - camera_y + offset.y
+
+
+    # Tiling the background
+    for x in range(tiles_x + 2):  # Extra tile to cover partial visibility
+        for y in range(tiles_y + 2):
+            screen.blit(rotated_image, (start_x + x * rotated_width, start_y + y * rotated_height))
