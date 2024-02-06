@@ -3,7 +3,6 @@ import math
 from pygamejr import game, Vec2d, DrawOptions, common
 import pymunk
 
-game.show_mouse_coordinates=True
 #game.set_camera_controls(True)
 game.start(screen_width=600, screen_height=600,
            screen_color="purple", gravity=-900, physics_fps_multiplier=5, screen_fps=50)
