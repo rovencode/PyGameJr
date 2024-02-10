@@ -233,7 +233,7 @@ def create_image(image_path:Union[str, Iterable[str]],
     else:
         image_path = list(image_path)
     assert len(image_path) > 0, "At least provide one image path."
-    image = common.get_image(image_path[0])
+    image = common.get_image(image_path[0])[0][1]
 
     width, height = image.get_size()
     if scale_xy is not None:
@@ -1010,7 +1010,7 @@ def _scale_screen_image():
 
 def set_screen_image(image_path:Optional[str]):
     if image_path is not None:
-        _screen_props.image = common.get_image(image_path)
+        _screen_props.image = common.get_image(image_path)[0][1]
     else:
         _screen_props.image = None
     _scale_screen_image()

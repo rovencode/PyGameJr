@@ -6,6 +6,7 @@ import os
 import timeit
 from enum import Enum
 import random
+import json
 
 import numpy as np
 
@@ -13,10 +14,11 @@ import pygame
 import pymunk
 from pymunk import pygame_util, Vec2d
 from pygamejr import utils
+import zipfile
 
 RGBAOutput = Tuple[int, int, int, int]
 PyGameColor = Union[pygame.Color, int, str, Tuple[int, int, int], RGBAOutput, Sequence[int]]
-_images:Dict[str, pygame.Surface] = {} # cache of all loaded images
+_images:Dict[str, List[Tuple[str, pygame.Surface]]] = {} # cache of all loaded images
 
 NumericNamedTuple = namedtuple('NumericNamedTuple', ['x', 'y'])
 NumericNamedTuple.__doc__ = """A named tuple with two numeric fields x and y."""
@@ -26,17 +28,50 @@ NumericNamedTuple.__annotations__ = {'x': Union[int, float], 'y': Union[int, flo
 Coordinates=Union[Tuple[float, float], Vec2d, NumericNamedTuple]
 Vector2=Union[Tuple[float, float], Vec2d, NumericNamedTuple]
 
-def get_image(image_path:str, cache=True)->pygame.Surface:
+
+
+def image_to_surface(filepath:str)->List[Tuple[str, pygame.Surface]]:
+    _, file_extension = os.path.splitext(filepath)
+
+    # Check if the file has a .sprite3 extension
+    images = []
+    if file_extension in ['.sprite3', '.zip', '.zar']:
+        with zipfile.ZipFile(filepath, 'r') as zip_ref:
+            if 'sprite.json' not in zip_ref.namelist():
+                # get list of all image filenames in archive
+                image_filenames = [f for f in zip_ref.namelist() if f.endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.svg'))]
+            else:
+                # open sprite.json file to get the list of images
+                with zip_ref.open('sprite.json') as json_file:
+                    sprite_info = json.load(json_file)
+                    image_filenames = [costume['md5ext'] for costume in sprite_info['costumes']]
+
+            for filename in image_filenames:
+                # Open the .jpg file directly from the archive
+                with zip_ref.open(filename) as image_file:
+                    # Load the image directly into a pygame.Surface from file-like object
+                    image_surface = pygame.image.load(image_file, filename)
+                    full_filpath = os.path.join(filepath, filename)
+                    images.append((full_filpath, image_surface))
+    else:
+        # Load the image directly if not a .sprite3 file
+        image_surface = pygame.image.load(filepath)
+        images.append((filepath, image_surface))
+
+    return images
+
+
+def get_image(image_path:str, cache=True)->List[Tuple[str, pygame.Surface]]:
     """
     Load an image from a file. If the image has already been loaded, return the cached image.
     """
     if image_path not in _images:
-        image = pygame.image.load(utils.full_path_abs(image_path))
+        images = image_to_surface(utils.full_path_abs(image_path))
         if cache:
-            _images[image_path] = image
+            _images[image_path] = images
     else:
-        image = _images[image_path]
-    return image
+        images = _images[image_path]
+    return images
 
 def polygon_points(sides:int, left:int, top:int, polygon_width:int, polygon_height:int)->List[Tuple[int, int]]:
     """
@@ -238,16 +273,17 @@ class CostumeSpec:
 
         for image_path in image_paths:
             # load image
-            image = get_image(image_path, cache=cache)
-            # set transparency
-            if self.transparent_color is not None:
-                image.set_colorkey(self.transparent_color)
-            else:
-                if self.transparency_enabled and has_transparency(image):
-                        image = image.convert_alpha()
-            self._images.append(image)
-            self._scaled_images.append(self._get_scaled_image(image))
+            images = get_image(image_path, cache=cache)
 
+            for filename, image in images:
+                # set transparency
+                if self.transparent_color is not None:
+                    image.set_colorkey(self.transparent_color)
+                else:
+                    if self.transparency_enabled and has_transparency(image):
+                            image = image.convert_alpha()
+                self._images.append(image)
+                self._scaled_images.append(self._get_scaled_image(image))
 
 @dataclass
 class CameraControls:

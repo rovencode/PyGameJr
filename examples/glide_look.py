@@ -2,15 +2,16 @@ from pygamejr import game
 
 game.start()
 
-triangle = game.create_polygon_any([(50,50), (20, 150), (80, 150)], color="green")
+cat = game.create_image("cat.sprite3", center=(300, 300))
+cat.start_animation()
 
 while game.is_running():
-    triangle.turn_towards(game.mouse_xy())
-    triangle.glide_to(game.mouse_xy(), speed=2)
+    cat.turn_towards(game.mouse_xy())
+    cat.glide_to(game.mouse_xy(), speed=2)
 
-    if triangle.touches_at(game.mouse_xy()):
-        triangle.add_text("BOOM!!")
+    if cat.touches_at(game.mouse_xy()):
+        cat.add_text("BOOM!!")
     else:
-        triangle.remove_text("BOOM!!")
+        cat.remove_text("BOOM!!")
 
     game.update()
