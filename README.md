@@ -1,45 +1,21 @@
+# Welcome to PyGameJr
 
-TODOs
-- actor.xy()
-- actor.center()
-- remove(actor)
-- remove_all_actors
+PyGameJr is for kids who would like to create 2D games. It is very easy to use but still powerful! It removes a lot of  complicated looking code needed for PyGame. If you were using Scratch then you will find familier functions like `turn`, `glide`, `look` etc. You will also find familier concepts like `costumes` so it is more easier to transition to powerful coding environment like Python!
 
 
-https://github.com/viblo/pymunk/blob/master/pymunk/examples/using_sprites.py
-https://github.com/viblo/pymunk/blob/master/pymunk/examples/platformer.py
-https://github.com/YushanWang9801/pygame_mario/tree/main
-https://github.com/mx0c/super-mario-python/blob/master/classes/Sprites.py
+## How to Install
 
-## Algo
+We highly recommand [Anaconda](https://www.anaconda.com/download) to install Python and use [VS Code](https://code.visualstudio.com/) as editor for writing and debugging code.
 
-Coordinate systems:
--	b_local_0  Body local without rotation
--	b_local  Body local with rotation
--	b_global  Global of b_local
--	camera_global  Camera view of b_global
+To install PyGameJr, just clone this repo and use pip command like this:
 
+```
+git clone https://github.com/sytelus/PyGameJr.git
+cd PyGameJr
+pip install -e .
+```
 
-1.	Take points centered at (0,0), + z=(0,0)
-2.	Rotate by body angle
-3.	Add body pos
-4.	Apply camera scale, angle, translate to points
-5.	Find box, x_min, y_min
-6.	Top_left = x_min, y_max
-7.	Normalize shape using x_min, y_min so bottom_left is zero
-8.	Find y_max
-9.	Invert y=y_max-y
-10.	zs = centroid in surface coordinates
-11.	Create surface x_max-x_min, y_max-y_min
-12.	Draw on surface at top left = 0,0
-13.	 Draw image at zs – (w,h)/2 for draw mode = center
-14.	Draw surface on screen at top_left
+## What do I do Next?
 
-     For iimage:
-1.	Take points centered at (0,0
-2.	Apply camera scale
-3.	Calculate box
-4.	Create surface of same size
-5.	Scale image by given factor * camera factor
-6.	Tile or center on surface
-7.	Rotate by body angle + camera angle
+Open the PyGameJr directory in your editor like VS Code. You will see examples folder in there. Click on individual example Python files and run it. Study the code, modify and enjoy!
+

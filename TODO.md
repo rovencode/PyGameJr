@@ -1,3 +1,0 @@
-# TODOs
-
-- Support full screen
